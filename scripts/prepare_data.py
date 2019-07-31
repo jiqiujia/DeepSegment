@@ -71,7 +71,7 @@ if __name__ == '__main__':
     srcDict = srcDict.prune(srcDict.size(), opt.min_freq)
     srcDict.writeFile(os.path.join(opt.outdir, 'src.vocab'))
 
-    tgtDict = utils.Dict([utils.PAD_WORD], lower=False)
+    tgtDict = utils.Dict([utils.PAD_WORD, utils.UNK_WORD, utils.BOS_WORD, utils.EOS_WORD], lower=False)
     tgtDict.add('B')
     tgtDict.add('O')
     tgtDict.writeFile(os.path.join(opt.outdir, 'tgt.vocab'))

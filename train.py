@@ -13,6 +13,7 @@ import utils
 import torch
 from torch.nn.init import xavier_uniform_
 from model import BiLSTM_CRF
+import numpy as np
 
 def to_int(x):
     # 如果加载进来的是已经转成id的文本
@@ -137,8 +138,8 @@ if __name__ == '__main__':
                 writer.add_scalar("train/{}", loss.item(), params["updates"])
                 logger.info("{} loss {}".format(params["updates"], loss.item()))
 
-            if params["updates"] % 1 == 0:
-                break
+            # if params["updates"] % 1 == 0:
+            #     break
 
         with torch.no_grad():
             model.eval()
@@ -150,19 +151,20 @@ if __name__ == '__main__':
                 model.zero_grad()
 
                 inputs = batch.text[0].to(device)
-                labels = batch.label[0].to(device)
+                labels = batch.label[0]
                 lengths = batch.text[1].to(device)
 
                 score, tag_seq = model(inputs, lengths)
-                num_correct = (
-                    tag_seq.eq(labels).masked_select(labels.ne(utils.PAD)).sum().item()
-                )
+                all_tags = np.asarray([tag for tags in tag_seq for tag in tags])
+                all_labels = torch.masked_select(labels, labels.ne(utils.PAD)).numpy()
+                num_correct = np.sum(all_tags == all_labels)
                 num_total = labels.ne(utils.PAD).sum().item()
+                score = torch.sum(score).item() / num_total
                 report_num_correct += num_correct
                 report_num_total += num_total
-                report_loss_total += score.item()
+                report_loss_total += score
                 num_updates += 1
-                print(labels)
+                print(tag_seq[0])
 
             cur_loss = report_loss_total.item() / num_updates
             cur_acc = report_num_correct / report_num_total
