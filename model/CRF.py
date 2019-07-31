@@ -82,4 +82,4 @@ class CRF(nn.Module):
             best_path[b].pop()
             best_path[b].reverse()
 
-        return best_path
+        return best_score, best_path

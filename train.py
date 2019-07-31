@@ -1,6 +1,7 @@
 import os
 import sys
 import time
+from tqdm import tqdm
 
 from torchtext import data, datasets
 import opts
@@ -37,7 +38,7 @@ if __name__ == '__main__':
     config = Namespace(**config, **vars(opt))
     logger = init_logger("torch", logging_path='')
 
-    # writer = misc_utils.set_tensorboard(config)
+    writer = misc_utils.set_tensorboard(config)
     device, devices_id = misc_utils.set_cuda(config)
 
     TEXT = data.Field(sequential=True, use_vocab=False, batch_first=True, unk_token=utils.UNK,
@@ -101,9 +102,11 @@ if __name__ == '__main__':
         params["updates"] = checkpoints["updates"]
 
     logger.info('begin training...')
+    best_loss = 1000000000
     for e in range(config.num_epoch):
-        logger.info('epoch %d'.format(e))
-        for batch in valid_iter:
+        logger.info('epoch {}'.format(e))
+        model.train()
+        for batch in tqdm(valid_iter):
             model.zero_grad()
 
             inputs = batch.text[0]
@@ -111,17 +114,60 @@ if __name__ == '__main__':
             lengths = batch.text[1]
 
             loss = model.neg_log_likelihood(inputs, labels, lengths)
-            loss = torch.mean(loss)
+            num_total = labels.ne(utils.PAD).sum().item()
+            loss = torch.sum(loss) / num_total
             loss.backward()
             optim.step()
 
+            params["report_total_loss"] += loss.item()
+            params["report_total"] += num_total
+            params["updates"] += 1
+
+            if params["updates"] % config.report_interval == 0:
+                writer.add_scalar("train/{}", loss.item(), params["updates"])
+                logger.info("{} loss {}:", params["updates"], loss.item())
+
         with torch.no_grad():
             model.eval()
-            for batch in valid_iter:
+            report_num_correct = 0
+            report_num_total = 0
+            report_loss_total = 0
+            num_updates = 0
+            for batch in tqdm(valid_iter):
                 model.zero_grad()
 
                 inputs = batch.text[0]
-                label = batch.label
-                length = batch.text[1]
+                labels = batch.label
+                lengths = batch.text[1]
 
                 score, tag_seq = model(inputs)
+                num_correct = (
+                    tag_seq.eq(labels).masked_select(labels.ne(utils.PAD)).sum().item()
+                )
+                num_total = labels.ne(utils.PAD).sum().item()
+                report_num_correct += num_correct
+                report_num_total += num_total
+                report_loss_total += score.item()
+                num_updates += 1
+
+            cur_loss = report_loss_total / num_updates
+            writer.add_scalar("valid/loss", cur_loss, params["updates"])
+            writer.add_scalar("valid/acc", report_num_correct / report_num_total, params["updates"])
+            save_model(
+                params["log_path"] + "best_checkpoint.pt",
+                model,
+                optim,
+                params["updates"],
+                config,
+            )
+            if (cur_loss > best_loss):
+                best_loss = cur_loss
+                save_model(
+                    params["log_path"] + "best_checkpoint.pt",
+                    model,
+                    optim,
+                    params["updates"],
+                    config,
+                )
+        if config.epoch_decay:
+            optim.updateLearningRate(e)

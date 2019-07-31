@@ -10,10 +10,10 @@ refF: ''
 
 # Logging
 logdir: 'experiments/'
-report_interval: 100
+report_interval: 10
 eval_interval: 5000
 save_interval: 5000
-metrics: ['nlg']
+metrics: ['mle']
 
 
 # Optimization
