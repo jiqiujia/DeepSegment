@@ -11,7 +11,7 @@ class CRF(nn.Module):
         self.end_tag = -1
 
         # matrix of transition scores from j to i
-        self.trans = nn.Parameter(torch.zeros(self.num_tags, self.num_tags))
+        self.trans = nn.Parameter(torch.randn(self.num_tags, self.num_tags))
         # self.trans.data[utils.UNK, :] = -10000. # no transition to UNK
         # self.trans.data[:, utils.UNK] = -10000. # no transition from UNK
         self.trans.data[self.start_tag, :] = -10000. # no transition to SOS

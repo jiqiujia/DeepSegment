@@ -42,8 +42,8 @@ num_layers: 4
 bidirectional: True
 enc_num_layers: 6
 dec_num_layers: 2
-dropout: 0.0
-emb_dropout: 0.0
+dropout: 0.3
+emb_dropout: 0.1
 swish: False
 length_norm: True
 pool_size: 0 # Pool size of maxout layer

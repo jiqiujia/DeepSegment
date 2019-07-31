@@ -16,7 +16,7 @@ class BiLSTM_CRF(nn.Module):
         self.num_layers = config.num_layers
         self.hidden_dim = config.hidden_dim
         self.vocab_size = vocab_size
-        self.tagset_size = tagset_size
+        self.tagset_size = tagset_size + 2
         self.start_idx = -2
         self.end_idx = -1
         self.batch_size = config.batch_size

@@ -137,7 +137,7 @@ if __name__ == '__main__':
             if params["updates"] % config.report_interval == 0:
                 writer.add_scalar("train/{}", loss.item(), params["updates"])
                 logger.info("{} loss {}".format(params["updates"], loss.item()))
-
+                writer.add_scalar("train" + "/lr", optim.lr, params['updates'])
             # if params["updates"] % 1 == 0:
             #     break
 
@@ -164,8 +164,8 @@ if __name__ == '__main__':
                 report_num_total += num_total
                 report_loss_total += score
                 num_updates += 1
-                print(inputs[0])
-                print(labels[0])
+                # print(inputs[0])
+                # print(labels[0])
                 print(tag_seq[0])
                 print("#########")
 

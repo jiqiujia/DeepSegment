@@ -57,8 +57,8 @@ if __name__ == '__main__':
             srcList.append(src)
             tgtList.append(tgt)
 
-    srcList = srcList[:100]
-    tgtList = tgtList[:100]
+    # srcList = srcList[:100]
+    # tgtList = tgtList[:100]
     # dump raw files
     # with io.open(opt.outdir, 'w+', encoding='utf-8') as fout:
     #     for src, tgt in zip(srcList, tgtList):
@@ -88,7 +88,7 @@ if __name__ == '__main__':
         srcIdList.append(srcIds)
         tgtIdList.append(tgtIds)
 
-    trainData, validData = train_val_split(srcIdList, tgtIdList, valid_size=0.1)
+    trainData, validData = train_val_split(srcIdList, tgtIdList, valid_size=opt.valid_size)
 
     print('writing files...')
     with io.open(os.path.join(opt.outdir, 'train.txt'), 'w+', encoding='utf-8') as fout:
