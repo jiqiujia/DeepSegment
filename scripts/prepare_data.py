@@ -1,6 +1,4 @@
-import sys
 import os
-sys.path.append(os.path.join(os.path.dirname(__file__), '../..'))
 
 import io
 import re
@@ -73,7 +71,7 @@ if __name__ == '__main__':
     srcDict = srcDict.prune(srcDict.size(), opt.min_freq)
     srcDict.writeFile(os.path.join(opt.outdir, 'src.vocab'))
 
-    tgtDict = utils.Dict(lower=False)
+    tgtDict = utils.Dict([utils.PAD_WORD], lower=False)
     tgtDict.add('B')
     tgtDict.add('O')
     tgtDict.writeFile(os.path.join(opt.outdir, 'tgt.vocab'))

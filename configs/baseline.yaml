@@ -13,6 +13,7 @@ logdir: 'experiments/'
 report_interval: 100
 eval_interval: 5000
 save_interval: 5000
+metrics: ['nlg']
 
 
 # Optimization
@@ -35,8 +36,10 @@ schesamp: False # Scheduled sampling
 attention: 'luong_gate'
 param_init: 0
 param_init_glorot: True
-emb_size: 512
-hidden_size: 512
+embedding_dim: 512
+hidden_dim: 512
+num_layers: 4
+bidirectional: True
 enc_num_layers: 6
 dec_num_layers: 2
 dropout: 0.1
