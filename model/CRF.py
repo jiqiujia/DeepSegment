@@ -7,7 +7,6 @@ class CRF(nn.Module):
     def __init__(self, num_tags, config):
         super().__init__()
         self.num_tags = num_tags
-        self.batch_size = config.batch_size
         self.start_tag = utils.BOS
         self.end_tag = utils.EOS
 
@@ -26,7 +25,7 @@ class CRF(nn.Module):
         # initialize forward variables in log space
         max_len = torch.max(lengths)
         mask = torch.arange(max_len).expand(len(lengths), max_len) < lengths.unsqueeze(1)
-        score = torch.full((self.batch_size, self.num_tags), -10000.)
+        score = torch.full((h.shape[0], self.num_tags), -10000.)
         score[:, self.start_tag] = 0.
         trans = self.trans.unsqueeze(0) # [1, C, C]
         for t in range(h.size(1)): # recursion through the sequence
@@ -41,9 +40,9 @@ class CRF(nn.Module):
     def score(self, h, y, lengths): # calculate the score of a given sequence
         max_len = torch.max(lengths)
         mask = torch.arange(max_len).expand(len(lengths), max_len) < lengths.unsqueeze(1)
-        score = torch.Tensor(self.batch_size).fill_(0.)
+        score = torch.Tensor(h.shape[0]).fill_(0.)
         h = h.unsqueeze(3)
-        y = torch.cat((torch.full((self.batch_size, 1), self.start_tag, dtype=torch.long), y), dim=-1)
+        y = torch.cat((torch.full((h.shape[0], 1), self.start_tag, dtype=torch.long), y), dim=-1)
         trans = self.trans.unsqueeze(2)
         for t in range(h.size(1)): # recursion through the sequence
             mask_t = mask[:, t]
@@ -59,7 +58,7 @@ class CRF(nn.Module):
         mask = torch.arange(max_len).expand(len(lengths), max_len) < lengths.unsqueeze(1)
         # initialize backpointers and viterbi variables in log space
         bptr = torch.LongTensor()
-        score = torch.Tensor(self.batch_size, self.num_tags).fill_(-10000.)
+        score = torch.Tensor(h.shape[0], self.num_tags).fill_(-10000.)
         score[:, self.start_tag] = 0.
 
         for t in range(h.size(1)): # recursion through the sequence
@@ -75,7 +74,7 @@ class CRF(nn.Module):
         # back-tracking
         bptr = bptr.tolist()
         best_path = [[i] for i in best_tag.tolist()]
-        for b in range(self.batch_size):
+        for b in range(h.shape[0]):
             x = best_tag[b] # best tag
             y = int(mask[b].sum().item())
             for bptr_t in reversed(bptr[b][:y]):

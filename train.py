@@ -166,7 +166,7 @@ if __name__ == '__main__':
                 num_updates += 1
                 print(tag_seq[0])
 
-            cur_loss = report_loss_total.item() / num_updates
+            cur_loss = report_loss_total / num_updates
             cur_acc = report_num_correct / report_num_total
             writer.add_scalar("valid/loss", cur_loss, params["updates"])
             writer.add_scalar("valid/acc", cur_acc, params["updates"])

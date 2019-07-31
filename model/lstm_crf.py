@@ -37,14 +37,14 @@ class BiLSTM_CRF(nn.Module):
 
         self.crf = CRF(self.tagset_size, config)
 
-    def init_hidden(self):
-        return (torch.randn(self.num_direction * self.num_layers, self.batch_size, self.hidden_dim),
-                torch.randn(self.num_direction * self.num_layers, self.batch_size, self.hidden_dim))
+    def init_hidden(self, batch_size):
+        return (torch.randn(self.num_direction * self.num_layers, batch_size, self.hidden_dim),
+                torch.randn(self.num_direction * self.num_layers, batch_size, self.hidden_dim))
 
 
     def _get_lstm_features(self, sentence, lengths):
         batch_size = sentence.size(0)
-        self.hidden = self.init_hidden()
+        self.hidden = self.init_hidden(batch_size)
         embeds = self.emb_drop(self.word_embeds(sentence))
         embeds = nn.utils.rnn.pack_padded_sequence(embeds, lengths, batch_first=True)
         lstm_out, self.hidden = self.lstm(embeds, self.hidden)

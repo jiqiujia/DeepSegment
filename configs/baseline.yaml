@@ -1,5 +1,5 @@
 # Data
-data: '../data/deepsegment/data/baseline/'
+data: '../data/deepsegment/data/test/'
 max_time_step: 150
 shared_vocab: False
 unk: True
