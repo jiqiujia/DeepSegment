@@ -38,8 +38,10 @@ class BiLSTM_CRF(nn.Module):
         self.crf = CRF(self.tagset_size, config)
 
     def init_hidden(self, batch_size):
-        return (torch.randn(self.num_direction * self.num_layers, batch_size, self.hidden_dim),
-                torch.randn(self.num_direction * self.num_layers, batch_size, self.hidden_dim))
+        return (torch.zeros(self.num_direction * self.num_layers, batch_size, self.hidden_dim),
+                torch.zeros(self.num_direction * self.num_layers, batch_size, self.hidden_dim))
+        # return (torch.randn(self.num_direction * self.num_layers, batch_size, self.hidden_dim),
+        #         torch.randn(self.num_direction * self.num_layers, batch_size, self.hidden_dim))
 
 
     def _get_lstm_features(self, sentence, lengths):

@@ -1,5 +1,5 @@
 # Data
-data: '../data/deepsegment/data/test/'
+data: '../data/deepsegment/data/baseline/'
 max_time_step: 150
 shared_vocab: False
 unk: True
@@ -17,7 +17,7 @@ metrics: ['mle']
 
 
 # Optimization
-num_epoch: 8
+num_epoch: 1000
 optim: 'adam'
 learning_rate: 2
 learning_rate_decay: 0.95
@@ -42,8 +42,8 @@ num_layers: 4
 bidirectional: True
 enc_num_layers: 6
 dec_num_layers: 2
-dropout: 0.1
-emb_dropout: 0.1
+dropout: 0.0
+emb_dropout: 0.0
 swish: False
 length_norm: True
 pool_size: 0 # Pool size of maxout layer

@@ -10,6 +10,7 @@ parser = ArgumentParser(description="train.py")
 parser.add_argument('--input', type=str, help='input file path')
 parser.add_argument('--outdir', type=str, help='output dir')
 parser.add_argument('--min_freq', type=int, default=0, help='vocab frequency threshold')
+parser.add_argument('--valid_size', type=float, default=0.1, help='validation set size')
 opt = parser.parse_args()
 
 logger = utils.init_logger("torch", logging_path='')
@@ -56,6 +57,8 @@ if __name__ == '__main__':
             srcList.append(src)
             tgtList.append(tgt)
 
+    srcList = srcList[:100]
+    tgtList = tgtList[:100]
     # dump raw files
     # with io.open(opt.outdir, 'w+', encoding='utf-8') as fout:
     #     for src, tgt in zip(srcList, tgtList):
@@ -71,7 +74,7 @@ if __name__ == '__main__':
     srcDict = srcDict.prune(srcDict.size(), opt.min_freq)
     srcDict.writeFile(os.path.join(opt.outdir, 'src.vocab'))
 
-    tgtDict = utils.Dict([utils.PAD_WORD, utils.UNK_WORD, utils.BOS_WORD, utils.EOS_WORD], lower=False)
+    tgtDict = utils.Dict([utils.PAD_WORD], lower=False)
     tgtDict.add('B')
     tgtDict.add('O')
     tgtDict.writeFile(os.path.join(opt.outdir, 'tgt.vocab'))
@@ -85,7 +88,7 @@ if __name__ == '__main__':
         srcIdList.append(srcIds)
         tgtIdList.append(tgtIds)
 
-    trainData, validData = train_val_split(srcIdList, tgtIdList, valid_size=10000)
+    trainData, validData = train_val_split(srcIdList, tgtIdList, valid_size=0.1)
 
     print('writing files...')
     with io.open(os.path.join(opt.outdir, 'train.txt'), 'w+', encoding='utf-8') as fout:

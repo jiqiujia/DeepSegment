@@ -7,13 +7,13 @@ class CRF(nn.Module):
     def __init__(self, num_tags, config):
         super().__init__()
         self.num_tags = num_tags
-        self.start_tag = utils.BOS
-        self.end_tag = utils.EOS
+        self.start_tag = -2
+        self.end_tag = -1
 
         # matrix of transition scores from j to i
-        self.trans = nn.Parameter(torch.randn(self.num_tags, self.num_tags))
-        self.trans.data[utils.UNK, :] = -10000. # no transition to UNK
-        self.trans.data[:, utils.UNK] = -10000. # no transition from UNK
+        self.trans = nn.Parameter(torch.zeros(self.num_tags, self.num_tags))
+        # self.trans.data[utils.UNK, :] = -10000. # no transition to UNK
+        # self.trans.data[:, utils.UNK] = -10000. # no transition from UNK
         self.trans.data[self.start_tag, :] = -10000. # no transition to SOS
         self.trans.data[:, self.end_tag] = -10000. # no transition from EOS except to PAD
         self.trans.data[:, utils.PAD] = -10000. # no transition from PAD except to PAD

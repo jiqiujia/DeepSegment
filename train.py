@@ -44,11 +44,11 @@ if __name__ == '__main__':
     device, devices_id = misc_utils.set_cuda(config)
 
     TEXT = data.Field(sequential=True, use_vocab=False, batch_first=True, unk_token=utils.UNK,
-                      include_lengths=True, pad_token=utils.PAD, preprocessing=to_int,
-                      init_token=utils.BOS, eos_token=utils.EOS)
+                      include_lengths=True, pad_token=utils.PAD, preprocessing=to_int,)
+                      # init_token=utils.BOS, eos_token=utils.EOS)
     LABEL = data.Field(sequential=True, use_vocab=False, batch_first=True, unk_token=utils.UNK,
-                       include_lengths=True, pad_token=utils.PAD, preprocessing=to_int,
-                       init_token=utils.BOS, eos_token=utils.EOS)
+                       include_lengths=True, pad_token=utils.PAD, preprocessing=to_int,)
+                       # init_token=utils.BOS, eos_token=utils.EOS)
 
     fields = [("text", TEXT), ("label", LABEL)]
     trainDataset = datasets.SequenceTaggingDataset(path=os.path.join(config.data, 'valid.txt'),
@@ -164,7 +164,10 @@ if __name__ == '__main__':
                 report_num_total += num_total
                 report_loss_total += score
                 num_updates += 1
+                print(inputs[0])
+                print(labels[0])
                 print(tag_seq[0])
+                print("#########")
 
             cur_loss = report_loss_total / num_updates
             cur_acc = report_num_correct / report_num_total
