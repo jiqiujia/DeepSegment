@@ -10,7 +10,7 @@ refF: ''
 
 # Logging
 logdir: 'experiments/'
-report_interval: 10
+report_interval: 1
 eval_interval: 5000
 save_interval: 5000
 metrics: ['mle']

@@ -11,6 +11,7 @@ from utils import init_logger, misc_utils, lr_scheduler
 import utils
 
 import torch
+from torch.nn.init import xavier_uniform_
 from model import BiLSTM_CRF
 
 def to_int(x):
@@ -62,6 +63,15 @@ if __name__ == '__main__':
     tgt_vocab.loadFile(os.path.join(config.data, "tgt.vocab"))
 
     model = BiLSTM_CRF(src_vocab.size(), tgt_vocab.size(), config)
+    model.to(device)
+
+    if config.param_init != 0.0:
+        for p in model.parameters():
+            p.data.uniform_(-config.param_init, config.param_init)
+    if config.param_init_glorot:
+        for p in model.parameters():
+            if p.dim() > 1:
+                xavier_uniform_(p)
 
     optim = utils.Optim(
         config.optim,
@@ -109,9 +119,9 @@ if __name__ == '__main__':
         for batch in tqdm(valid_iter):
             model.zero_grad()
 
-            inputs = batch.text[0]
-            labels = batch.label[0]
-            lengths = batch.text[1]
+            inputs = batch.text[0].to(device)
+            labels = batch.label[0].to(device)
+            lengths = batch.text[1].to(device)
 
             loss = model.neg_log_likelihood(inputs, labels, lengths)
             num_total = labels.ne(utils.PAD).sum().item()
@@ -125,7 +135,10 @@ if __name__ == '__main__':
 
             if params["updates"] % config.report_interval == 0:
                 writer.add_scalar("train/{}", loss.item(), params["updates"])
-                logger.info("{} loss {}:", params["updates"], loss.item())
+                logger.info("{} loss {}".format(params["updates"], loss.item()))
+
+            if params["updates"] % 10 == 0:
+                break
 
         with torch.no_grad():
             model.eval()
@@ -136,11 +149,11 @@ if __name__ == '__main__':
             for batch in tqdm(valid_iter):
                 model.zero_grad()
 
-                inputs = batch.text[0]
-                labels = batch.label
-                lengths = batch.text[1]
+                inputs = batch.text[0].to(device)
+                labels = batch.label.to(device)
+                lengths = batch.text[1].to(device)
 
-                score, tag_seq = model(inputs)
+                score, tag_seq = model(inputs, lengths)
                 num_correct = (
                     tag_seq.eq(labels).masked_select(labels.ne(utils.PAD)).sum().item()
                 )
@@ -149,10 +162,13 @@ if __name__ == '__main__':
                 report_num_total += num_total
                 report_loss_total += score.item()
                 num_updates += 1
+                print(labels)
 
-            cur_loss = report_loss_total / num_updates
+            cur_loss = report_loss_total.item() / num_updates
+            cur_acc = report_num_correct / report_num_total
             writer.add_scalar("valid/loss", cur_loss, params["updates"])
-            writer.add_scalar("valid/acc", report_num_correct / report_num_total, params["updates"])
+            writer.add_scalar("valid/acc", cur_acc, params["updates"])
+            logger.info("epoch {} valid loss {}, acc {}".format(e, cur_loss, cur_acc))
             save_model(
                 params["log_path"] + "best_checkpoint.pt",
                 model,
