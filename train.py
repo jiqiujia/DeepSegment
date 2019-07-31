@@ -137,7 +137,7 @@ if __name__ == '__main__':
                 writer.add_scalar("train/{}", loss.item(), params["updates"])
                 logger.info("{} loss {}".format(params["updates"], loss.item()))
 
-            if params["updates"] % 10 == 0:
+            if params["updates"] % 1 == 0:
                 break
 
         with torch.no_grad():
@@ -150,7 +150,7 @@ if __name__ == '__main__':
                 model.zero_grad()
 
                 inputs = batch.text[0].to(device)
-                labels = batch.label.to(device)
+                labels = batch.label[0].to(device)
                 lengths = batch.text[1].to(device)
 
                 score, tag_seq = model(inputs, lengths)
