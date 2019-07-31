@@ -43,6 +43,7 @@ if __name__ == '__main__':
 
     writer = misc_utils.set_tensorboard(config)
     device, devices_id = misc_utils.set_cuda(config)
+    config.device = device
 
     TEXT = data.Field(sequential=True, use_vocab=False, batch_first=True, unk_token=utils.UNK,
                       include_lengths=True, pad_token=utils.PAD, preprocessing=to_int,)
