@@ -117,6 +117,8 @@ if __name__ == '__main__':
     best_loss = 1000000000
     for e in range(config.num_epoch):
         logger.info('epoch {}'.format(e))
+        if config.schedule:
+            scheduler.step()
         model.train()
         for batch in tqdm(valid_iter):
             model.zero_grad()
