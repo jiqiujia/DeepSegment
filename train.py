@@ -39,6 +39,7 @@ if __name__ == '__main__':
     config = yaml.load(open(opt.config, "r"))
     config = Namespace(**config, **vars(opt))
     logger = init_logger("torch", logging_path='')
+    logger.info(config.__dict__)
 
     writer = misc_utils.set_tensorboard(config)
     device, devices_id = misc_utils.set_cuda(config)
@@ -175,7 +176,7 @@ if __name__ == '__main__':
             writer.add_scalar("valid/acc", cur_acc, params["updates"])
             logger.info("epoch {} valid loss {}, acc {}".format(e, cur_loss, cur_acc))
             save_model(
-                params["log_path"] + "best_checkpoint.pt",
+                params["log_path"] + "checkpoint.pt",
                 model,
                 optim,
                 params["updates"],
