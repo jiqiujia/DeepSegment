@@ -1,0 +1,53 @@
+# Data
+data: 'data/test/'
+max_time_step: 150
+shared_vocab: False
+unk: True
+label_smoothing: 0.1
+scale: 1 # Proportion of the training set
+refF: ''
+
+
+# Logging
+logdir: 'experiments/'
+report_interval: 1
+eval_interval: 5000
+save_interval: 5000
+metrics: ['mle']
+
+
+# Optimization
+num_epoch: 1000
+optim: 'adam'
+learning_rate: 0.1
+learning_rate_decay: 0.95
+start_decay_steps: 10000
+decay_method: "noam"
+beta1: 0.9
+beta2: 0.998
+max_grad_norm: 1
+warmup_steps: 1
+epoch_decay: False # decay by epochs after decay starts
+schedule: False # Learning rate schedule
+schesamp: False # Scheduled sampling
+
+
+# Model
+attention: 'luong_gate'
+param_init: 0
+param_init_glorot: True
+embedding_dim: 512
+hidden_dim: 512
+num_layers: 4
+bidirectional: True
+enc_num_layers: 6
+dec_num_layers: 2
+dropout: 0.3
+emb_dropout: 0.1
+swish: False
+length_norm: True
+pool_size: 0 # Pool size of maxout layer
+
+
+# Others
+seed: 1234
