@@ -15,12 +15,12 @@ class CRF(nn.Module):
         self.trans = nn.Parameter(torch.randn(self.num_tags, self.num_tags))
         # self.trans.data[utils.UNK, :] = -10000. # no transition to UNK
         # self.trans.data[:, utils.UNK] = -10000. # no transition from UNK
-        self.trans.data[self.start_tag, :] = -10000. # no transition to SOS
-        self.trans.data[:, self.end_tag] = -10000. # no transition from EOS except to PAD
-        self.trans.data[:, utils.PAD] = -10000. # no transition from PAD except to PAD
-        self.trans.data[utils.PAD, :] = -10000. # no transition to PAD except from EOS
-        self.trans.data[utils.PAD, self.end_tag] = 0.
-        self.trans.data[utils.PAD, utils.PAD] = 0.
+        # self.trans.data[self.start_tag, :] = -10000. # no transition to SOS
+        # self.trans.data[:, self.end_tag] = -10000. # no transition from EOS except to PAD
+        # self.trans.data[:, utils.PAD] = -10000. # no transition from PAD except to PAD
+        # self.trans.data[utils.PAD, :] = -10000. # no transition to PAD except from EOS
+        # self.trans.data[utils.PAD, self.end_tag] = 0.
+        # self.trans.data[utils.PAD, utils.PAD] = 0.
 
     def forward(self, h, lengths): # forward algorithm
         # initialize forward variables in log space

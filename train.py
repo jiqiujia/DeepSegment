@@ -33,6 +33,74 @@ def save_model(path, model, optim, updates, config):
     }
     torch.save(checkpoints, path)
 
+def eval(valid_iter, model, config, best_loss, tgt_vocab):
+    with torch.no_grad():
+        model.eval()
+        report_num_correct = 0
+        report_num_total = 0
+        report_loss_total = 0
+        num_updates = 0
+
+        precision = 0.
+        total_precision = 0
+        recall = 0.
+        total_recall = 0
+        for batch in tqdm(valid_iter):
+            model.zero_grad()
+
+            inputs = batch.text[0].to(device)
+            labels = batch.label[0].to(device)
+            lengths = batch.text[1].to(device)
+
+            score, tag_seq = model(inputs, lengths)
+            all_tags = np.asarray([tag for tags in tag_seq for tag in tags])
+            all_labels = torch.masked_select(labels, labels.ne(utils.PAD)).cpu().numpy()
+            num_correct = np.sum(all_tags == all_labels)
+            num_total = labels.ne(utils.PAD).sum().item()
+            score = torch.sum(score).item() / num_total
+            report_num_correct += num_correct
+            report_num_total += num_total
+            report_loss_total += score
+            num_updates += 1
+
+            all_b_tags = all_tags == tgt_vocab.lookup('B')
+            all_b_labels = all_labels == tgt_vocab.lookup('B')
+            intersection = np.sum(np.logical_and(all_b_labels, all_b_tags))
+            precision += intersection
+            total_precision += np.sum(all_b_tags)
+            recall += intersection
+            total_recall += np.sum(all_b_labels)
+            # print(inputs[0])
+            # print(labels[0])
+            # print(tag_seq[0])
+            # break
+        cur_loss = report_loss_total / num_updates
+        cur_acc = report_num_correct / report_num_total
+        precision = precision / total_precision
+        recall = recall / total_recall
+        logger.info("valid loss {}, acc {}, precision {}, recall {}".format(cur_loss, cur_acc, precision, recall))
+        if config.mode == 'train':
+            writer.add_scalar("valid/loss", cur_loss, params["updates"])
+            writer.add_scalar("valid/acc", cur_acc, params["updates"])
+            save_model(
+                params["log_path"] + "checkpoint.pt",
+                model,
+                optim,
+                params["updates"],
+                config,
+            )
+            if cur_loss < best_loss:
+                best_loss = cur_loss
+                save_model(
+                    params["log_path"] + "best_checkpoint.pt",
+                    model,
+                    optim,
+                    params["updates"],
+                    config,
+                )
+            return best_loss
+
+
 if __name__ == '__main__':
     # Combine command-line arguments and yaml file arguments
     opt = opts.model_opts()
@@ -53,7 +121,7 @@ if __name__ == '__main__':
                        # init_token=utils.BOS, eos_token=utils.EOS)
 
     fields = [("text", TEXT), ("label", LABEL)]
-    trainDataset = datasets.SequenceTaggingDataset(path=os.path.join(config.data, 'valid.txt'),
+    trainDataset = datasets.SequenceTaggingDataset(path=os.path.join(config.data, 'train.txt'),
                                                    fields=fields)
     validDataset = datasets.SequenceTaggingDataset(path=os.path.join(config.data, 'valid.txt'),
                                                    fields=fields)
@@ -100,7 +168,8 @@ if __name__ == '__main__':
         )
     else:
         checkpoints = None
-
+    if checkpoints is not None:
+        model.load_state_dict(checkpoints["model"])
     params = {
         "updates": 0,
         "report_total_loss": 0,
@@ -114,43 +183,14 @@ if __name__ == '__main__':
     if config.restore:
         params["updates"] = checkpoints["updates"]
 
-    logger.info('begin training...')
-    best_loss = 1000000000
-    for e in range(config.num_epoch):
-        logger.info('epoch {}'.format(e))
-        if config.schedule:
-            scheduler.step()
-        model.train()
-        for batch in tqdm(valid_iter):
-            model.zero_grad()
-
-            inputs = batch.text[0].to(device)
-            labels = batch.label[0].to(device)
-            lengths = batch.text[1].to(device)
-
-            loss = model.neg_log_likelihood(inputs, labels, lengths)
-            num_total = labels.ne(utils.PAD).sum().item()
-            loss = torch.sum(loss) / num_total
-            loss.backward()
-            optim.step()
-
-            params["report_total_loss"] += loss.item()
-            params["report_total"] += num_total
-            params["updates"] += 1
-
-            if params["updates"] % config.report_interval == 0:
-                writer.add_scalar("train/{}", loss.item(), params["updates"])
-                logger.info("{} loss {}".format(params["updates"], loss.item()))
-                writer.add_scalar("train" + "/lr", optim.lr, params['updates'])
-            # if params["updates"] % 1 == 0:
-            #     break
-
-        with torch.no_grad():
-            model.eval()
-            report_num_correct = 0
-            report_num_total = 0
-            report_loss_total = 0
-            num_updates = 0
+    if config.mode == 'train':
+        logger.info('begin training...')
+        best_loss = 1000000000
+        for e in range(config.num_epoch):
+            logger.info('epoch {}'.format(e))
+            if config.schedule:
+                scheduler.step()
+            model.train()
             for batch in tqdm(valid_iter):
                 model.zero_grad()
 
@@ -158,41 +198,26 @@ if __name__ == '__main__':
                 labels = batch.label[0].to(device)
                 lengths = batch.text[1].to(device)
 
-                score, tag_seq = model(inputs, lengths)
-                all_tags = np.asarray([tag for tags in tag_seq for tag in tags])
-                all_labels = torch.masked_select(labels, labels.ne(utils.PAD)).cpu().numpy()
-                num_correct = np.sum(all_tags == all_labels)
+                loss = model.neg_log_likelihood(inputs, labels, lengths)
                 num_total = labels.ne(utils.PAD).sum().item()
-                score = torch.sum(score).item() / num_total
-                report_num_correct += num_correct
-                report_num_total += num_total
-                report_loss_total += score
-                num_updates += 1
-                # print(inputs[0])
-                # print(labels[0])
-                print(tag_seq[0])
-                print("#########")
+                loss = torch.sum(loss) / num_total
+                loss.backward()
+                optim.step()
 
-            cur_loss = report_loss_total / num_updates
-            cur_acc = report_num_correct / report_num_total
-            writer.add_scalar("valid/loss", cur_loss, params["updates"])
-            writer.add_scalar("valid/acc", cur_acc, params["updates"])
-            logger.info("epoch {} valid loss {}, acc {}".format(e, cur_loss, cur_acc))
-            save_model(
-                params["log_path"] + "checkpoint.pt",
-                model,
-                optim,
-                params["updates"],
-                config,
-            )
-            if (cur_loss < best_loss):
-                best_loss = cur_loss
-                save_model(
-                    params["log_path"] + "best_checkpoint.pt",
-                    model,
-                    optim,
-                    params["updates"],
-                    config,
-                )
-        if config.epoch_decay:
-            optim.updateLearningRate(e)
+                params["report_total_loss"] += loss.item()
+                params["report_total"] += num_total
+                params["updates"] += 1
+
+                if params["updates"] % config.report_interval == 0:
+                    writer.add_scalar("train/{}", loss.item(), params["updates"])
+                    logger.info("{} loss {}".format(params["updates"], loss.item()))
+                    writer.add_scalar("train" + "/lr", optim.lr, params['updates'])
+                # if params["updates"] % 1 == 0:
+                #     break
+
+            if config.epoch_decay:
+                optim.updateLearningRate(e)
+
+            best_loss = eval(valid_iter, model, config, best_loss, tgt_vocab)
+    elif config.mode == 'eval':
+        eval(valid_iter, model, config, 0, tgt_vocab)
