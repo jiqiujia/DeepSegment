@@ -155,12 +155,12 @@ if __name__ == '__main__':
                 model.zero_grad()
 
                 inputs = batch.text[0].to(device)
-                labels = batch.label[0]
+                labels = batch.label[0].to(device)
                 lengths = batch.text[1].to(device)
 
                 score, tag_seq = model(inputs, lengths)
                 all_tags = np.asarray([tag for tags in tag_seq for tag in tags])
-                all_labels = torch.masked_select(labels, labels.ne(utils.PAD)).numpy()
+                all_labels = torch.masked_select(labels, labels.ne(utils.PAD)).cpu().numpy()
                 num_correct = np.sum(all_tags == all_labels)
                 num_total = labels.ne(utils.PAD).sum().item()
                 score = torch.sum(score).item() / num_total
