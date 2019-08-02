@@ -82,6 +82,8 @@ def eval(valid_iter, model, config, best_loss, tgt_vocab):
         if config.mode == 'train':
             writer.add_scalar("valid/loss", cur_loss, params["updates"])
             writer.add_scalar("valid/acc", cur_acc, params["updates"])
+            writer.add_scalar("valid/precision", precision, params["updates"])
+            writer.add_scalar("valid/recall", recall, params["updates"])
             save_model(
                 params["log_path"] + "checkpoint.pt",
                 model,
