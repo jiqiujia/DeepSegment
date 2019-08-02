@@ -38,7 +38,8 @@ with io.open("testOut.txt", 'w+', encoding='utf-8') as fout:
         srcLenList = []
         catList = []
 
-        batch_size = 10
+        batch_size = config.batch_size
+        cnt = 0
         for line in fin.readlines():
             arr = line.strip().split("\t")
             line = re.sub(ILLEGAL_REGEX, "", arr[0])
@@ -52,6 +53,9 @@ with io.open("testOut.txt", 'w+', encoding='utf-8') as fout:
             srcIdList.append(ids)
             srcLenList.append(len(ids))
             catList.append(cat)
+            cnt += 1
+            if cnt > 10:
+                break
         # packed rnn sequence needs lengths to be in decreasing order
         indices = np.argsort(srcLenList)[::-1]
         srcList = [srcList[i] for i in indices]
@@ -62,7 +66,9 @@ with io.open("testOut.txt", 'w+', encoding='utf-8') as fout:
         # srcList = srcList[:2]
         resList = []
         addOne = 1 if (len(srcList) % batch_size) else 0
-        for i in range(len(srcList) // batch_size + addOne):
+        batch_num = len(srcList) // batch_size + addOne
+        print('batchNum ', batch_num)
+        for i in range(batch_num):
             print("batch ", i)
             startIdx = i * batch_size
             endIdx = min((i + 1) * batch_size, len(srcList))
@@ -70,7 +76,7 @@ with io.open("testOut.txt", 'w+', encoding='utf-8') as fout:
             lengths = srcLenList[startIdx:endIdx]
 
             maxLen = max(len(x) for x in xs)
-            xs = [x + [0] * (maxLen - len(x)) for x in xs]
+            xs = [x + [utils.PAD] * (maxLen - len(x)) for x in xs]
 
             xs = torch.tensor(xs).to(device)
             lengths = torch.tensor(lengths).to(device)
