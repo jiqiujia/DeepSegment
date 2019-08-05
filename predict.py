@@ -29,7 +29,7 @@ device, devices_id = misc_utils.set_cuda(config)
 config.device = device
 model.to(device)
 
-ILLEGAL_REGEX = r"[^\u4e00-\u9fff0-9a-zA-Z]"
+ILLEGAL_REGEX = r"[^\u4e00-\u9fff0-9a-zA-Z.]"
 # testCats = ['cloth']
 with io.open("testOut.txt", 'w+', encoding='utf-8') as fout:
     with io.open("randomDescs.txt", encoding='utf-8') as fin:
