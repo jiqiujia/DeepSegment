@@ -127,8 +127,11 @@ if __name__ == '__main__':
                                                    fields=fields)
     validDataset = datasets.SequenceTaggingDataset(path=os.path.join(config.data, 'valid.txt'),
                                                    fields=fields)
-    train_iter, valid_iter = data.Iterator.splits((trainDataset, validDataset),
-                                                  batch_sizes=(config.batch_size, config.batch_size))
+    train_iter, valid_iter = data.BucketIterator.splits((trainDataset, validDataset),
+                                                        batch_sizes=(config.batch_size, config.batch_size),
+                                                        sort_key=lambda x: len(x.text),  # field sorted by len
+                                                        sort_within_batch=True
+                                                        )
 
     src_vocab = utils.Dict()
     src_vocab.loadFile(os.path.join(config.data, "src.vocab"))
