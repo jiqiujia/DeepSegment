@@ -193,7 +193,7 @@ if __name__ == '__main__':
             if config.schedule:
                 scheduler.step()
             model.train()
-            for batch in tqdm(valid_iter):
+            for batch in tqdm(train_iter):
                 model.zero_grad()
 
                 inputs = batch.text[0].to(device)
