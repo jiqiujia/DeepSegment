@@ -130,7 +130,8 @@ if __name__ == '__main__':
     train_iter, valid_iter = data.BucketIterator.splits((trainDataset, validDataset),
                                                         batch_sizes=(config.batch_size, config.batch_size),
                                                         sort_key=lambda x: len(x.text),  # field sorted by len
-                                                        sort_within_batch=True
+                                                        sort_within_batch=True,
+                                                        repeat=False
                                                         )
 
     src_vocab = utils.Dict()
@@ -217,12 +218,12 @@ if __name__ == '__main__':
                     writer.add_scalar("train/{}", loss.item(), params["updates"])
                     logger.info("{} loss {}".format(params["updates"], loss.item()))
                     writer.add_scalar("train" + "/lr", optim.lr, params['updates'])
-                # if params["updates"] % 1 == 0:
-                #     break
+                if params["updates"] % config.eval_interval == 0:
+                    best_loss = eval(valid_iter, model, config, best_loss, tgt_vocab)
+                    model.train()
 
             if config.epoch_decay:
                 optim.updateLearningRate(e)
 
-            best_loss = eval(valid_iter, model, config, best_loss, tgt_vocab)
     elif config.mode == 'eval':
         eval(valid_iter, model, config, 0, tgt_vocab)

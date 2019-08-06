@@ -46,7 +46,6 @@ with io.open("testOut.txt", 'w+', encoding='utf-8') as fout:
             cat = arr[1]
             chars = [c for c in line]
             ids = src_vocab.convertToIdx(chars, utils.UNK_WORD)
-            ids = ids[::-1] # 由于训练时反转了，这里也需要反转，见data_helper的padding函数
             # print(chars, ids)
 
             srcList.append(line)
@@ -54,8 +53,8 @@ with io.open("testOut.txt", 'w+', encoding='utf-8') as fout:
             srcLenList.append(len(ids))
             catList.append(cat)
             cnt += 1
-            if cnt > 10:
-                break
+            # if cnt > 10:
+            #     break
         # packed rnn sequence needs lengths to be in decreasing order
         indices = np.argsort(srcLenList)[::-1]
         srcList = [srcList[i] for i in indices]
