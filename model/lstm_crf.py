@@ -8,10 +8,11 @@ import utils
 from utils.util_functions import *
 
 class BiLSTM_CRF(nn.Module):
+    # __constants__ = ['device']
 
     def __init__(self, vocab_size, tagset_size, config):
         super(BiLSTM_CRF, self).__init__()
-        self.config = config
+        self.device = config.device
         self.embedding_dim = config.embedding_dim
         self.num_layers = config.num_layers
         self.hidden_dim = config.hidden_dim
@@ -40,8 +41,8 @@ class BiLSTM_CRF(nn.Module):
     def init_hidden(self, batch_size):
         # return (torch.zeros(self.num_direction * self.num_layers, batch_size, self.hidden_dim),
         #         torch.zeros(self.num_direction * self.num_layers, batch_size, self.hidden_dim))
-        return (torch.randn(self.num_direction * self.num_layers, batch_size, self.hidden_dim).to(self.config.device),
-                torch.randn(self.num_direction * self.num_layers, batch_size, self.hidden_dim).to(self.config.device))
+        return (torch.randn(self.num_direction * self.num_layers, batch_size, self.hidden_dim).to(self.device),
+                torch.randn(self.num_direction * self.num_layers, batch_size, self.hidden_dim).to(self.device))
 
 
     def _get_lstm_features(self, sentence, lengths):

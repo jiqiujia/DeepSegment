@@ -216,9 +216,9 @@ if __name__ == '__main__':
 
                 if params["updates"] % config.report_interval == 0:
                     writer.add_scalar("train/{}", loss.item(), params["updates"])
-                    logger.info("{} loss {}".format(params["updates"], loss.item()))
                     writer.add_scalar("train" + "/lr", optim.lr, params['updates'])
                 if params["updates"] % config.eval_interval == 0:
+                    logger.info("{} loss {}".format(params["updates"], loss.item()))
                     best_loss = eval(valid_iter, model, config, best_loss, tgt_vocab)
                     model.train()
 

@@ -4,12 +4,14 @@ import utils
 from utils.util_functions import *
 
 class CRF(nn.Module):
+    # __constants__ = ['device']
+
     def __init__(self, num_tags, config):
         super().__init__()
         self.num_tags = num_tags
         self.start_tag = -2
         self.end_tag = -1
-        self.config = config
+        self.device = config.device
 
         # matrix of transition scores from j to i
         self.trans = nn.Parameter(torch.randn(self.num_tags, self.num_tags))
@@ -25,8 +27,8 @@ class CRF(nn.Module):
     def forward(self, h, lengths): # forward algorithm
         # initialize forward variables in log space
         max_len = torch.max(lengths)
-        mask = torch.arange(max_len).expand(len(lengths), max_len).to(self.config.device) < lengths.unsqueeze(1)
-        score = torch.full((h.shape[0], self.num_tags), -10000.).to(self.config.device)
+        mask = torch.arange(max_len).expand(len(lengths), max_len).to(self.device) < lengths.unsqueeze(1)
+        score = torch.full((h.shape[0], self.num_tags), -10000.).to(self.device)
         score[:, self.start_tag] = 0.
         trans = self.trans.unsqueeze(0) # [1, C, C]
         for t in range(h.size(1)): # recursion through the sequence
@@ -40,10 +42,10 @@ class CRF(nn.Module):
 
     def score(self, h, y, lengths): # calculate the score of a given sequence
         max_len = torch.max(lengths)
-        mask = torch.arange(max_len).expand(len(lengths), max_len).to(self.config.device) < lengths.unsqueeze(1)
-        score = torch.Tensor(h.shape[0]).fill_(0.).to(self.config.device)
+        mask = torch.arange(max_len).expand(len(lengths), max_len).to(self.device) < lengths.unsqueeze(1)
+        score = torch.Tensor(h.shape[0]).fill_(0.).to(self.device)
         h = h.unsqueeze(3)
-        y = torch.cat((torch.full((h.shape[0], 1), self.start_tag, dtype=torch.long).to(self.config.device), y), dim=-1)
+        y = torch.cat((torch.full((h.shape[0], 1), self.start_tag, dtype=torch.long).to(self.device), y), dim=-1)
         trans = self.trans.unsqueeze(2)
         for t in range(h.size(1)): # recursion through the sequence
             mask_t = mask[:, t]
@@ -55,11 +57,11 @@ class CRF(nn.Module):
         return score
 
     def decode(self, h, lengths): # Viterbi decoding
-        max_len = torch.max(lengths).item()
-        mask = torch.arange(max_len).expand(len(lengths), max_len).to(self.config.device) < lengths.unsqueeze(1)
+        max_len = torch.max(lengths)
+        mask = torch.arange(max_len).expand(len(lengths), max_len).to(self.device) < lengths.unsqueeze(1)
         # initialize backpointers and viterbi variables in log space
-        bptr = torch.LongTensor().to(self.config.device)
-        score = torch.Tensor(h.shape[0], self.num_tags).fill_(-10000.).to(self.config.device)
+        bptr = torch.LongTensor().to(self.device)
+        score = torch.Tensor(h.shape[0], self.num_tags).fill_(-10000.).to(self.device)
         score[:, self.start_tag] = 0.
 
         for t in range(h.size(1)): # recursion through the sequence
