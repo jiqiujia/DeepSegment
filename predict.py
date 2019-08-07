@@ -15,6 +15,9 @@ opt = opts.model_opts()
 config = yaml.load(open(opt.config, "r"))
 config = Namespace(**config, **vars(opt))
 
+device, devices_id = misc_utils.set_cuda(config)
+config.device = device
+
 src_vocab = utils.Dict()
 src_vocab.loadFile(os.path.join(config.data, "src.vocab"))
 tgt_vocab = utils.Dict()
@@ -22,12 +25,16 @@ tgt_vocab.loadFile(os.path.join(config.data, "tgt.vocab"))
 
 model = BiLSTM_CRF(src_vocab.size(), tgt_vocab.size(), config)
 checkpoint = torch.load(config.restore, lambda storage, loc: storage)
+print(model.state_dict().keys())
+print(checkpoint['model'].keys())
 model.load_state_dict(checkpoint['model'])
 model.eval()
 
-device, devices_id = misc_utils.set_cuda(config)
-config.device = device
 model.to(device)
+
+x = torch.ones(32, 20).long()
+lengths = torch.ones(32).long() * 20
+print(model(x, lengths))
 
 ILLEGAL_REGEX = r"[^\u4e00-\u9fff0-9a-zA-Z.]"
 # testCats = ['cloth']
