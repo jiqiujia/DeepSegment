@@ -63,9 +63,9 @@ class BiLSTM_CRF(torch.jit.ScriptModule):
 
         hidden = self.init_hidden()
         embeds = self.emb_drop(self.word_embeds(sentence))
-        embeds = nn.utils.rnn.pack_padded_sequence(embeds, lengths, batch_first=self.batch_first)
+        # embeds = nn.utils.rnn.pack_padded_sequence(embeds, lengths, batch_first=self.batch_first)
         lstm_out, hidden = self.lstm(embeds, hidden)
-        lstm_out, _ = nn.utils.rnn.pad_packed_sequence(lstm_out, batch_first=self.batch_first, padding_value=utils.PAD)
+        # lstm_out, _ = nn.utils.rnn.pad_packed_sequence(lstm_out, batch_first=self.batch_first, padding_value=utils.PAD)
         # lstm_out = lstm_out.view(len(sentence), self.hidden_dim)
         lstm_feats = self.hidden2tag(lstm_out)
         # lstm_feats = self._get_lstm_features(sentence, lengths)
