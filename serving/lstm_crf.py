@@ -5,7 +5,8 @@ import utils
 from utils.util_functions import *
 
 class BiLSTM_CRF(torch.jit.ScriptModule):
-    __constants__ = ['num_tags']
+    __constants__ = ['num_tags', 'hidden', 'num_layers', 'embedding_dim', 'batch_size',
+                     'batch_first']
 
     def __init__(self, vocab_size, tagset_size, config):
         super(BiLSTM_CRF, self).__init__()
@@ -15,9 +16,8 @@ class BiLSTM_CRF(torch.jit.ScriptModule):
         self.hidden_dim = config.hidden_dim
         self.vocab_size = vocab_size
         self.tagset_size = tagset_size + 2
-        self.start_idx = -2
-        self.end_idx = -1
         self.batch_size = config.batch_size
+        self.batch_first = True
 
         self.bidirectional = config.bidirectional
         self.num_direction = 1
@@ -35,20 +35,18 @@ class BiLSTM_CRF(torch.jit.ScriptModule):
 
         self.crf = CRF(self.tagset_size, config)
 
-    def init_hidden(self, batch_size):
+    def init_hidden(self):
         # return (torch.zeros(self.num_direction * self.num_layers, batch_size, self.hidden_dim),
         #         torch.zeros(self.num_direction * self.num_layers, batch_size, self.hidden_dim))
-        return (torch.randn(self.num_direction * self.num_layers, batch_size, self.hidden_dim),
-                torch.randn(self.num_direction * self.num_layers, batch_size, self.hidden_dim))
-
+        return (torch.randn(self.num_direction * self.num_layers, self.batch_size, self.hidden_dim),
+                torch.randn(self.num_direction * self.num_layers, self.batch_size, self.hidden_dim))
 
     def _get_lstm_features(self, sentence, lengths):
-        batch_size = sentence.size(0)
-        self.hidden = self.init_hidden(batch_size)
+        hidden = self.init_hidden()
         embeds = self.emb_drop(self.word_embeds(sentence))
-        embeds = nn.utils.rnn.pack_padded_sequence(embeds, lengths, batch_first=True)
-        lstm_out, self.hidden = self.lstm(embeds, self.hidden)
-        lstm_out, _ = nn.utils.rnn.pad_packed_sequence(lstm_out, batch_first=True, padding_value=utils.PAD)
+        # embeds = nn.utils.rnn.pack_padded_sequence(embeds, lengths, batch_first=self.batch_first)
+        lstm_out, hidden = self.lstm(embeds, hidden)
+        # lstm_out, _ = nn.utils.rnn.pad_packed_sequence(lstm_out, batch_first=self.batch_first, padding_value=utils.PAD)
         # lstm_out = lstm_out.view(len(sentence), self.hidden_dim)
         lstm_feats = self.hidden2tag(lstm_out)
         return lstm_feats
@@ -62,7 +60,15 @@ class BiLSTM_CRF(torch.jit.ScriptModule):
     @torch.jit.script_method
     def forward(self, sentence, lengths):  # dont confuse this with _forward_alg above.
         # Get the emission scores from the BiLSTM
-        lstm_feats = self._get_lstm_features(sentence, lengths)
+
+        hidden = self.init_hidden()
+        embeds = self.emb_drop(self.word_embeds(sentence))
+        embeds = nn.utils.rnn.pack_padded_sequence(embeds, lengths, batch_first=self.batch_first)
+        lstm_out, hidden = self.lstm(embeds, hidden)
+        lstm_out, _ = nn.utils.rnn.pad_packed_sequence(lstm_out, batch_first=self.batch_first, padding_value=utils.PAD)
+        # lstm_out = lstm_out.view(len(sentence), self.hidden_dim)
+        lstm_feats = self.hidden2tag(lstm_out)
+        # lstm_feats = self._get_lstm_features(sentence, lengths)
 
         # Find the best path, given the features.
         score = self.crf.decode(lstm_feats, lengths)

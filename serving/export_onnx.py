@@ -35,14 +35,7 @@ model.eval()
 batch_size = 1
 length = 2
 x = torch.ones(batch_size, length).long()
-lengths = torch.ones(batch_size).long() * length
+lengths = torch.ones(batch_size).long() * 2
 
 model.eval()
-
-# TODO: failed because nn.utils.rnn.pack_padded_sequence is not supported
-# see issue: https://github.com/pytorch/pytorch/issues/21282
-traced_scripts_module = torch.jit.trace(model, (x, lengths), check_trace=False)
-print(traced_scripts_module)
-
-traced_scripts_module.save('traced_model.pt')
-
+torch.onnx.export(model, (x, lengths), "model.onnx")
