@@ -1,12 +1,12 @@
 import torch.nn as nn
-from .CRF import CRF
+from serving.CRF import CRF
 import utils
 # torch.manual_seed(1)
 from utils.util_functions import *
 
 class BiLSTM_CRF(torch.jit.ScriptModule):
-    __constants__ = ['num_tags', 'hidden', 'num_layers', 'embedding_dim', 'batch_size',
-                     'batch_first']
+    # __constants__ = ['num_tags', 'hidden', 'num_layers', 'embedding_dim', 'batch_size',
+    #                  'batch_first']
 
     def __init__(self, vocab_size, tagset_size, config):
         super(BiLSTM_CRF, self).__init__()
@@ -45,7 +45,7 @@ class BiLSTM_CRF(torch.jit.ScriptModule):
         hidden = self.init_hidden()
         embeds = self.emb_drop(self.word_embeds(sentence))
         # embeds = nn.utils.rnn.pack_padded_sequence(embeds, lengths, batch_first=self.batch_first)
-        lstm_out, hidden = self.lstm(embeds, hidden)
+        lstm_out, hidden = self.lstm.forward(embeds, hidden)
         # lstm_out, _ = nn.utils.rnn.pad_packed_sequence(lstm_out, batch_first=self.batch_first, padding_value=utils.PAD)
         # lstm_out = lstm_out.view(len(sentence), self.hidden_dim)
         lstm_feats = self.hidden2tag(lstm_out)
@@ -73,3 +73,18 @@ class BiLSTM_CRF(torch.jit.ScriptModule):
         # Find the best path, given the features.
         score = self.crf.decode(lstm_feats, lengths)
         return score
+
+if __name__ == '__main__':
+    import opts
+    import yaml
+    from argparse import ArgumentParser, Namespace
+    from utils import misc_utils
+
+    opt = opts.model_opts()
+    config = yaml.load(open(opt.config, "r"))
+    config = Namespace(**config, **vars(opt))
+    device, devices_id = misc_utils.set_cuda(config)
+    config.device = device
+    model = BiLSTM_CRF(2, 2, config)
+
+    # model.forward([[1,1]], [2])

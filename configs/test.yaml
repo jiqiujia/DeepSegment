@@ -17,16 +17,16 @@ metrics: ['mle']
 
 
 # Optimization
-num_epoch: 5
+num_epoch: 1000000
 optim: 'adam'
-learning_rate: 0.1
+learning_rate: 2
 learning_rate_decay: 0.95
 start_decay_steps: 10000
 decay_method: "noam"
 beta1: 0.9
 beta2: 0.998
 max_grad_norm: 1
-warmup_steps: 1
+warmup_steps: 16000
 epoch_decay: False # decay by epochs after decay starts
 schedule: False # Learning rate schedule
 schesamp: False # Scheduled sampling

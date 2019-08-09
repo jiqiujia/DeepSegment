@@ -194,6 +194,7 @@ if __name__ == '__main__':
         best_loss = 1000000000
         for e in range(config.num_epoch):
             logger.info('epoch {}'.format(e))
+            logger.info("epoch {} lr {}".format(e, optim.lr))
             if config.schedule:
                 scheduler.step()
             model.train()

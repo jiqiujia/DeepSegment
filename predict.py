@@ -31,6 +31,8 @@ model.load_state_dict(checkpoint['model'])
 model.eval()
 
 model.to(device)
+# TODO: half precision has limited support on cpu
+# model = model.half()
 
 x = torch.ones(32, 20).long()
 lengths = torch.ones(32).long() * 20
@@ -40,6 +42,7 @@ ILLEGAL_REGEX = r"[^\u4e00-\u9fff0-9a-zA-Z.]"
 # testCats = ['cloth']
 with io.open("testOut.txt", 'w+', encoding='utf-8') as fout:
     with io.open("randomDescs.txt", encoding='utf-8') as fin:
+        oriSrcList = []
         srcList = []
         srcIdList = []
         srcLenList = []
@@ -55,15 +58,15 @@ with io.open("testOut.txt", 'w+', encoding='utf-8') as fout:
             ids = src_vocab.convertToIdx(chars, utils.UNK_WORD)
             # print(chars, ids)
 
+            oriSrcList.append(arr[0])
             srcList.append(line)
             srcIdList.append(ids)
             srcLenList.append(len(ids))
             catList.append(cat)
             cnt += 1
-            # if cnt > 10:
-            #     break
         # packed rnn sequence needs lengths to be in decreasing order
         indices = np.argsort(srcLenList)[::-1]
+        oriSrcList = [oriSrcList[i] for i in indices]
         srcList = [srcList[i] for i in indices]
         srcIdList = [srcIdList[i] for i in indices]
         srcLenList = [srcLenList[i] for i in indices]
@@ -93,10 +96,16 @@ with io.open("testOut.txt", 'w+', encoding='utf-8') as fout:
                     candidates = ''.join(tgt_vocab.convertToLabels(tags, utils.EOS))
                     resList.append(candidates)
 
-        for src, res in zip(srcList, resList):
-            fout.write(src + '\n')
+        for oriSrc, src, res in zip(oriSrcList, srcList, resList):
+            fout.write(oriSrc + '\n')
+            tmp = []
+            idx = 0
             for x, y in zip(src, res):
-                fout.write(x +'\t'+ y +'\n')
-            fout.write("\n")
+                if y=='b' and idx > 0:
+                    fout.write(''.join(tmp) + '\n')
+                    tmp = []
+                tmp.append(x)
+                idx += 1
+            fout.write(''.join(tmp) + "\n\n")
 
         fout.write("\n####################################\n\n")
