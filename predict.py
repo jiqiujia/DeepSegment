@@ -38,7 +38,22 @@ x = torch.ones(32, 20).long()
 lengths = torch.ones(32).long() * 20
 print(model(x, lengths))
 
-ILLEGAL_REGEX = r"[^\u4e00-\u9fff0-9a-zA-Z.]"
+ILLEGAL_REGEX = r"[^-\u4e00-\u9fff0-9a-zA-Z.]"
+
+
+def preprocess(x: str):
+    x = x.lower()
+    x = re.sub("&amp;?", "&", x)
+    x = re.sub("&#x0a;?", "", x)
+    x = re.sub("&#x0020;?", "", x)
+    x = re.sub("&#x000a;?", "", x)
+    x = re.sub("(https?|ftp|file)://[-a-zA-Z0-9+&@#/%?=~_|!:,.;]*[-a-zA-Z0-9+&@#/%=~_|]", "", x)
+    x = re.sub("\\[[^\\]]{1,3}\\]", "", x)
+    x = re.sub(ILLEGAL_REGEX, "", x)
+    return x
+
+
+
 # testCats = ['cloth']
 with io.open("testOut.txt", 'w+', encoding='utf-8') as fout:
     with io.open("randomDescs.txt", encoding='utf-8') as fin:
@@ -52,7 +67,7 @@ with io.open("testOut.txt", 'w+', encoding='utf-8') as fout:
         cnt = 0
         for line in fin.readlines():
             arr = line.strip().split("\t")
-            line = re.sub(ILLEGAL_REGEX, "", arr[0])
+            line = preprocess(arr[0])
             cat = arr[1]
             chars = [c for c in line]
             ids = src_vocab.convertToIdx(chars, utils.UNK_WORD)
@@ -101,7 +116,7 @@ with io.open("testOut.txt", 'w+', encoding='utf-8') as fout:
             tmp = []
             idx = 0
             for x, y in zip(src, res):
-                if y=='b' and idx > 0:
+                if y == 'b' and idx > 0:
                     fout.write(''.join(tmp) + '\n')
                     tmp = []
                 tmp.append(x)

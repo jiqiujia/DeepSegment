@@ -17,7 +17,7 @@ opt = parser.parse_args()
 
 logger = utils.init_logger("torch", logging_path='')
 
-STS_SEPARATOR_REGEX = '[,，！!。？?:：;；]'
+STS_SEPARATOR_REGEX = '[,，！!。？?:：;；~]|[-.=]{2,}'
 
 
 def train_val_split(X, y, valid_size=0.1, random_state=1101, shuffle=True):
@@ -49,7 +49,7 @@ if __name__ == '__main__':
             line = line.strip().lower()
             line = line.split('\t')[-1]
             stses = re.split(STS_SEPARATOR_REGEX, line)
-            tags = [['O'] * len(sts) for sts in stses]
+            tags = [['O'] * len(sts) for sts in stses if len(sts) > 0]
             for tag in tags:
                 if len(tag) > 0:
                     tag[0] = 'B'
