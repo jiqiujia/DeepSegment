@@ -50,6 +50,7 @@ def preprocess(x: str):
     x = re.sub("(https?|ftp|file)://[-a-zA-Z0-9+&@#/%?=~_|!:,.;]*[-a-zA-Z0-9+&@#/%=~_|]", "", x)
     x = re.sub("\\[[^\\]]{1,3}\\]", "", x)
     x = re.sub(ILLEGAL_REGEX, "", x)
+    x = re.sub('\\.{2,}', '', x)
     return x
 
 
