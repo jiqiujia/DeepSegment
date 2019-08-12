@@ -49,10 +49,11 @@ if __name__ == '__main__':
             line = line.strip().lower()
             line = line.split('\t')[-1]
             stses = re.split(STS_SEPARATOR_REGEX, line)
-            tags = [['O'] * len(sts) for sts in stses if len(sts) > 0]
+            tags = [['I'] * len(sts) for sts in stses if len(sts) > 0]
             for tag in tags:
                 if len(tag) > 0:
                     tag[0] = 'B'
+                    tag[-1] = 'E'
             src = ''.join(stses)
             tgt = ''.join([''.join(tag) for tag in tags])
             assert len(src) == len(tgt), 'unequal length of src and tgt'
@@ -78,7 +79,8 @@ if __name__ == '__main__':
 
     tgtDict = utils.Dict([utils.PAD_WORD], lower=False)
     tgtDict.add('B')
-    tgtDict.add('O')
+    tgtDict.add('I')
+    tgtDict.add('E')
     tgtDict.writeFile(os.path.join(opt.outdir, 'tgt.vocab'))
 
     logger.info("convert to idx...")
