@@ -91,7 +91,7 @@ def eval(valid_iter, model, config, best_loss, tgt_vocab):
                 params["updates"],
                 config,
             )
-            if cur_loss < best_loss:
+            if cur_loss > best_loss:
                 best_loss = cur_loss
                 save_model(
                     params["log_path"] + "best_checkpoint.pt",
