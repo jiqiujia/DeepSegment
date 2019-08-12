@@ -12,7 +12,7 @@ import utils
 
 import torch
 from torch.nn.init import xavier_uniform_
-from model import BiLSTM_CRF
+from model import BiLSTM_CRF, ResLSTM_CRF
 import numpy as np
 
 def to_int(x):
@@ -139,7 +139,13 @@ if __name__ == '__main__':
     tgt_vocab = utils.Dict()
     tgt_vocab.loadFile(os.path.join(config.data, "tgt.vocab"))
 
-    model = BiLSTM_CRF(src_vocab.size(), tgt_vocab.size(), config)
+    if config.model == 'bilstm_crf':
+        model = BiLSTM_CRF(src_vocab.size(), tgt_vocab.size(), config)
+    elif config.model == 'reslstm_crf':
+        model = ResLSTM_CRF(src_vocab.size(), tgt_vocab.size(), config)
+    else:
+        model = None
+        raise NotImplementedError(config.model + " not implemented!")
     model.to(device)
 
     if config.param_init != 0.0:

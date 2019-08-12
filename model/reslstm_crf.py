@@ -7,12 +7,13 @@ import utils
 # torch.manual_seed(1)
 from utils.util_functions import *
 
+from .StackedLSTM import StackedLSTM
 
-class BiLSTM_CRF(nn.Module):
+class ResLSTM_CRF(nn.Module):
     # __constants__ = ['device']
 
     def __init__(self, vocab_size, tagset_size, config):
-        super(BiLSTM_CRF, self).__init__()
+        super(ResLSTM_CRF, self).__init__()
         self.device = config.device
         self.embedding_dim = config.embedding_dim
         self.num_layers = config.num_layers
@@ -28,29 +29,38 @@ class BiLSTM_CRF(nn.Module):
 
         self.word_embeds = nn.Embedding(vocab_size, config.embedding_dim)
         self.emb_drop = nn.Dropout(config.emb_dropout)
-        self.lstm = nn.LSTM(config.embedding_dim, config.hidden_dim,
-                            num_layers=config.num_layers, bidirectional=True,
+        self.bilstm = nn.LSTM(config.embedding_dim, config.hidden_dim // 2,
+                            num_layers=1, bidirectional=True,
                             dropout=config.dropout, batch_first=True)
 
+        self.lstm = StackedLSTM(self.num_layers, input_size=config.hidden_dim, config=config)
         # Maps the output of the LSTM into tag space.
-        self.hidden2tag = nn.Linear(self.num_direction * config.hidden_dim, self.tagset_size)
+        self.hidden2tag = nn.Linear(config.hidden_dim, self.tagset_size)
 
         self.crf = CRF(self.tagset_size, config)
 
-    def init_hidden(self, batch_size):
+    def init_hidden(self, num_hidden, batch_size, hidden_dim):
         # return (torch.zeros(self.num_direction * self.num_layers, batch_size, self.hidden_dim),
         #         torch.zeros(self.num_direction * self.num_layers, batch_size, self.hidden_dim))
-        return (torch.randn(self.num_direction * self.num_layers, batch_size, self.hidden_dim).to(self.device),
-                torch.randn(self.num_direction * self.num_layers, batch_size, self.hidden_dim).to(self.device))
+        return (torch.randn(num_hidden, batch_size, hidden_dim).to(self.device),
+                torch.randn(num_hidden, batch_size, hidden_dim).to(self.device))
 
     def _get_lstm_features(self, sentence, lengths):
         batch_size = sentence.size(0)
-        self.hidden = self.init_hidden(batch_size)
+        bilstm_hidden = self.init_hidden(self.num_direction, batch_size, self.hidden_dim // 2)
         embeds = self.emb_drop(self.word_embeds(sentence))
         embeds = nn.utils.rnn.pack_padded_sequence(embeds, lengths, batch_first=True)
-        lstm_out, self.hidden = self.lstm(embeds, self.hidden)
-        lstm_out, _ = nn.utils.rnn.pad_packed_sequence(lstm_out, batch_first=True, padding_value=utils.PAD)
-        # lstm_out = lstm_out.view(len(sentence), self.hidden_dim)
+        bilstm_out, _ = self.bilstm(embeds, bilstm_hidden)
+        bilstm_out, _ = nn.utils.rnn.pad_packed_sequence(bilstm_out, batch_first=True, padding_value=utils.PAD)
+
+        lstm_hidden = self.init_hidden(self.num_layers, batch_size, self.hidden_dim)
+        lstm_out = []
+        for t in range(sentence.size(1)):
+            out_t, lstm_hidden = self.lstm(bilstm_out[:, t], lstm_hidden)
+            lstm_out.append(out_t)
+        lstm_out = torch.stack(lstm_out, 0)
+        lstm_out = lstm_out.transpose(0, 1)
+
         lstm_feats = self.hidden2tag(lstm_out)
         return lstm_feats
 
@@ -60,8 +70,7 @@ class BiLSTM_CRF(nn.Module):
         gold_score = self.crf.score(feats, tags, lengths)
         return forward_score - gold_score
 
-    def forward(self, sentence, lengths):  # dont confuse this with _forward_alg above.
-        self.lstm.flatten_parameters()
+    def forward(self, sentence, lengths):
         # Get the emission scores from the BiLSTM
         lstm_feats = self._get_lstm_features(sentence, lengths)
 

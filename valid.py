@@ -31,63 +31,51 @@ model.load_state_dict(checkpoint['model'])
 model.eval()
 
 model.to(device)
-# TODO: half precision has limited support on cpu
-# model = model.half()
-
-x = torch.ones(32, 20).long()
-lengths = torch.ones(32).long() * 20
-print(model(x, lengths))
-
-ILLEGAL_REGEX = r"[^-\u4e00-\u9fff0-9a-zA-Z.]"
-
-
-def preprocess(x: str):
-    x = x.lower()
-    x = re.sub("&amp;?", "&", x)
-    x = re.sub("&#x0a;?", "", x)
-    x = re.sub("&#x0020;?", "", x)
-    x = re.sub("&#x000a;?", "", x)
-    x = re.sub("(https?|ftp|file)://[-a-zA-Z0-9+&@#/%?=~_|!:,.;]*[-a-zA-Z0-9+&@#/%=~_|]", "", x)
-    x = re.sub("\\[[^\\]]{1,3}\\]", "", x)
-    x = re.sub(ILLEGAL_REGEX, "", x)
-    x = re.sub('\\.{2,}', '', x)
-    return x
-
 
 # testCats = ['cloth']
-with io.open("testOut.txt", 'w+', encoding='utf-8') as fout:
-    with io.open("randomDescs.txt", encoding='utf-8') as fin:
-        oriSrcList = []
+with io.open("validOut2.txt", 'w+', encoding='utf-8') as fout:
+    with io.open(os.path.join(config.data, 'valid.txt'), encoding='utf-8') as fin:
         srcList = []
         srcIdList = []
         srcLenList = []
-        catList = []
+        tgtList = []
 
         batch_size = config.batch_size
         cnt = 0
+        tmpx = []
+        tmpy = []
+        tmpId = []
         for line in fin.readlines():
-            arr = line.strip().split("\t")
-            line = preprocess(arr[0])
-            cat = arr[1]
-            chars = [c for c in line]
-            ids = src_vocab.convertToIdx(chars, utils.UNK_WORD)
-            # print(chars, ids)
+            if line.strip() == '':
+                if len(tmpx) > 0:
+                    tmpSrc = ''.join(src_vocab.convertToLabels(tmpx, None))
+                    srcList.append(tmpSrc)
+                    srcIdList.append(tmpx)
+                    tgtList.append(tmpy)
+                    srcLenList.append(len(tmpx))
+                    tmpx = []
+                    tmpy = []
+            else:
+                arr = line.strip().split("\t")
+                x = int(arr[0])
+                y = int(arr[1])
+                tmpx.append(x)
+                tmpy.append(y)
+                cnt += 1
+        if len(tmpx) > 0:
+            tmpSrc = src_vocab.convertToLabels(tmpx, None)
+            srcList.append(tmpSrc)
+            srcIdList.append(tmpx)
+            tgtList.append(tmpy)
+            srcLenList.append(len(tmpx))
 
-            oriSrcList.append(arr[0])
-            srcList.append(line)
-            srcIdList.append(ids)
-            srcLenList.append(len(ids))
-            catList.append(cat)
-            cnt += 1
         # packed rnn sequence needs lengths to be in decreasing order
-        indices = np.argsort(srcLenList)[::-1]
-        oriSrcList = [oriSrcList[i] for i in indices]
+        indices = np.argsort(srcLenList)[::-1][-1000:]
         srcList = [srcList[i] for i in indices]
         srcIdList = [srcIdList[i] for i in indices]
         srcLenList = [srcLenList[i] for i in indices]
-        catList = [catList[i] for i in indices]
+        tgtList = [tgtList[i] for i in indices]
 
-        # srcList = srcList[:2]
         resList = []
         addOne = 1 if (len(srcList) % batch_size) else 0
         batch_num = len(srcList) // batch_size + addOne
@@ -111,8 +99,17 @@ with io.open("testOut.txt", 'w+', encoding='utf-8') as fout:
                     candidates = ''.join(tgt_vocab.convertToLabels(tags, utils.EOS))
                     resList.append(candidates)
 
-        for oriSrc, src, res in zip(oriSrcList, srcList, resList):
-            fout.write(oriSrc + '\n')
+        for src, res, gt in zip(srcList, resList, tgtList):
+            fout.write(src + '\n')
+            idx = 0
+            stses = []
+            for x, y in zip(src, gt):
+                if y == 1 and idx > 0:
+                    stses.append('，')
+                stses.append(x)
+                idx += 1
+            fout.write(''.join(stses) + '\n')
+
             tmp = []
             idx = 0
             for x, y in zip(src, res):
