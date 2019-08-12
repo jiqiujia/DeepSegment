@@ -7,6 +7,8 @@ import utils
 # torch.manual_seed(1)
 from utils.util_functions import *
 
+
+# TODO: residual lstm, 第一层双向（维度/2），后面residual
 class BiLSTM_CRF(nn.Module):
     # __constants__ = ['device']
 
@@ -18,8 +20,6 @@ class BiLSTM_CRF(nn.Module):
         self.hidden_dim = config.hidden_dim
         self.vocab_size = vocab_size
         self.tagset_size = tagset_size + 2
-        self.start_idx = -2
-        self.end_idx = -1
         self.batch_size = config.batch_size
 
         self.bidirectional = config.bidirectional
@@ -44,7 +44,6 @@ class BiLSTM_CRF(nn.Module):
         return (torch.randn(self.num_direction * self.num_layers, batch_size, self.hidden_dim).to(self.device),
                 torch.randn(self.num_direction * self.num_layers, batch_size, self.hidden_dim).to(self.device))
 
-
     def _get_lstm_features(self, sentence, lengths):
         batch_size = sentence.size(0)
         self.hidden = self.init_hidden(batch_size)
@@ -63,6 +62,7 @@ class BiLSTM_CRF(nn.Module):
         return forward_score - gold_score
 
     def forward(self, sentence, lengths):  # dont confuse this with _forward_alg above.
+        self.lstm.flatten_parameters()
         # Get the emission scores from the BiLSTM
         lstm_feats = self._get_lstm_features(sentence, lengths)
 
