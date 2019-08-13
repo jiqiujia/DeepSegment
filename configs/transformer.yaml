@@ -1,6 +1,6 @@
 # Data
-data: 'data/test/'
-max_time_step: 150
+data: '../data/deepsegment/data/wxbaseline2/'
+max_time_step: 200
 shared_vocab: False
 unk: True
 label_smoothing: 0.1
@@ -11,22 +11,22 @@ refF: ''
 # Logging
 logdir: 'experiments/'
 report_interval: 1
-eval_interval: 1
-save_interval: 1
+eval_interval: 5000
+save_interval: 5000
 metrics: ['mle']
 
 
 # Optimization
-num_epoch: 1000000
+num_epoch: 8
 optim: 'adam'
-learning_rate: 0.1
+learning_rate: 2
 learning_rate_decay: 0.95
 start_decay_steps: 10000
 decay_method: "noam"
 beta1: 0.9
 beta2: 0.998
 max_grad_norm: 1
-warmup_steps: 1000
+warmup_steps: 16000
 epoch_decay: False # decay by epochs after decay starts
 schedule: False # Learning rate schedule
 schesamp: False # Scheduled sampling
@@ -34,22 +34,21 @@ schesamp: False # Scheduled sampling
 
 # Model
 model: "transformer_crf"
+## Transformer
 embed_only: False
 positional: True
-heads: 8
-d_ff: 2048
+heads: 4
+d_ff: 512
 convolutional: False
-residual: True
-attention: 'luong_gate'
+enc_num_layers: 4
 param_init: 0
 param_init_glorot: True
 embedding_dim: 512
 hidden_dim: 512
 num_layers: 4
 bidirectional: True
-enc_num_layers: 4
-dec_num_layers: 2
-dropout: 0
+residual: True
+dropout: 0.1
 emb_dropout: 0.1
 swish: False
 length_norm: True
@@ -58,7 +57,6 @@ pool_size: 0 # Pool size of maxout layer
 
 # Others
 seed: 1234
-
 ## KOBE
 conditioned: False
 knowledge: False

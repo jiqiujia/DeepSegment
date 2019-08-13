@@ -12,7 +12,7 @@ import utils
 
 import torch
 from torch.nn.init import xavier_uniform_
-from model import BiLSTM_CRF, ResLSTM_CRF
+from models import BiLSTM_CRF, ResLSTM_CRF, TransformerCRF
 import numpy as np
 
 def to_int(x):
@@ -147,6 +147,8 @@ if __name__ == '__main__':
         model = BiLSTM_CRF(src_vocab.size(), tgt_vocab.size(), config)
     elif config.model == 'reslstm_crf':
         model = ResLSTM_CRF(src_vocab.size(), tgt_vocab.size(), config)
+    elif config.model == 'transformer_crf':
+        model = TransformerCRF(src_vocab.size(), tgt_vocab.size(), config)
     else:
         model = None
         raise NotImplementedError(config.model + " not implemented!")
@@ -186,6 +188,9 @@ if __name__ == '__main__':
         checkpoints = None
     if checkpoints is not None:
         model.load_state_dict(checkpoints["model"])
+
+    print(repr(model) + "\n\n")
+
     params = {
         "updates": 0,
         "report_total_loss": 0,
