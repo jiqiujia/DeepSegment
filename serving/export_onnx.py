@@ -27,15 +27,28 @@ checkpoint = torch.load(config.restore, lambda storage, loc: storage)
 # print(model.state_dict().keys())
 # print(checkpoint['model'].keys())
 state = model.state_dict()
-state.update(checkpoint['model'])
+pretrained_dict = {k: v for k, v in checkpoint['model'].items() if k in state}
+state.update(pretrained_dict)
 model.load_state_dict(state)
 model.eval()
-
 
 batch_size = 1
 length = 2
 x = torch.ones(batch_size, length).long()
 lengths = torch.ones(batch_size).long() * 2
+output = model(x, lengths)
+print('output', output)
 
-model.eval()
-torch.onnx.export(model, (x, lengths), "model.onnx")
+torch.onnx.export(model,  # model being run
+                  x,  # model input (or a tuple for multiple inputs)
+                  "deepsegment.onnx",  # where to save the model (can be a file or file-like object)
+                  export_params=True,  # store the trained parameter weights inside the model file
+                  opset_version=10,  # the onnx version to export the model to
+                  do_constant_folding=True,  # wether to execute constant folding for optimization
+                  input_names=['input', 'lengths'],  # the model's input names
+                  verbose=True,
+                  output_names=['output'],  # the model's output names
+                  dynamic_axes={'input': {0: 'batch_size', 1: 'lengths'},  # variable lenght axes
+                                'lengths': {0: 'batch_size'},
+                                'output': {0: 'batch_size'}},
+                  example_outputs=output)

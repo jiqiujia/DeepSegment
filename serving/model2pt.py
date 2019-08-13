@@ -26,21 +26,22 @@ model = BiLSTM_CRF(src_vocab.size(), tgt_vocab.size(), config)
 checkpoint = torch.load(config.restore, lambda storage, loc: storage)
 # print(model.state_dict().keys())
 # print(checkpoint['model'].keys())
+
+# TODO: only load partial weights; crf is difficult to trace
 state = model.state_dict()
-state.update(checkpoint['model'])
+pretrained_dict = {k: v for k, v in checkpoint['model'].items() if k in state}
+state.update(pretrained_dict)
 model.load_state_dict(state)
 model.eval()
 
 
-batch_size = 1
+batch_size = 2
 length = 2
 x = torch.ones(batch_size, length).long()
 lengths = torch.ones(batch_size).long() * length
 
-# TODO: failed because nn.utils.rnn.pack_padded_sequence is not supported
-# see issue: https://github.com/pytorch/pytorch/issues/21282
-traced_scripts_module = torch.jit.trace(model.forward, (x, lengths), check_trace=False)
+traced_scripts_module = torch.jit.trace(model, (x, lengths))
 print(traced_scripts_module)
-
+print(traced_scripts_module(x, lengths))
 traced_scripts_module.save('traced_model.pt')
 

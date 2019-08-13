@@ -24,7 +24,6 @@ class CRF(torch.jit.ScriptModule):
         # self.trans.data[utils.PAD, self.end_tag] = 0.
         # self.trans.data[utils.PAD, utils.PAD] = 0.
 
-    @torch.jit.script_method
     def forward(self, h, lengths): # forward algorithm
         # initialize forward variables in log space
         max_len = torch.max(lengths)
@@ -57,6 +56,7 @@ class CRF(torch.jit.ScriptModule):
         score += self.trans[self.end_tag, last_tag]
         return score
 
+    @torch.jit.script_method
     def decode(self, h, lengths): # Viterbi decoding
         max_len = torch.max(lengths)
         mask = torch.arange(max_len).expand(len(lengths), max_len) < lengths.unsqueeze(1)

@@ -33,7 +33,7 @@ schesamp: False # Scheduled sampling
 
 
 # Model
-model: "transformer_crf"
+model: "bilstm_crf"
 embed_only: False
 positional: True
 heads: 8

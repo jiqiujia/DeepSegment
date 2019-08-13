@@ -1,7 +1,6 @@
 import torch
 import torch.nn as nn
 
-print(torch.__version__)
 
 # TODO: https://github.com/pytorch/pytorch/issues/23930
 class test(torch.jit.ScriptModule):
@@ -15,7 +14,7 @@ class test(torch.jit.ScriptModule):
         # delattr(self.rnn, 'forward_packed')
 
     @torch.jit.script_method
-    def forward(self, x, lengths):
+    def forward(self, x):
         h1 = (torch.zeros(2, 1, 512), torch.zeros(2, 1, 512))
         embeds = self.emb_drop(self.word_embeds(x))
         out, h1 = self.rnn(embeds, h1)
@@ -23,8 +22,13 @@ class test(torch.jit.ScriptModule):
         return h1
 
 
-net = test()
+model = test()
 
-output = net(torch.ones((1,3)).long(), torch.ones((3,1)))
-torch.jit.trace(net, (torch.ones((1,3)).long(), torch.ones((3,1))), check_trace=False)
+input = torch.ones((1,3)).long()
+output = model(input)
+torch.onnx.export(model,  # model being run
+                  input,
+                  'test.onnx',
+                  example_outputs=output)
+# torch.jit.trace(net, (torch.ones((1,3)).long(), torch.ones((3,1))), check_trace=False)
 # print(output.shape)
