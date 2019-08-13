@@ -30,8 +30,7 @@ class ResLSTM_CRF(nn.Module):
         self.word_embeds = nn.Embedding(vocab_size, config.embedding_dim)
         self.emb_drop = nn.Dropout(config.emb_dropout)
         self.bilstm = nn.LSTM(config.embedding_dim, config.hidden_dim // 2,
-                            num_layers=1, bidirectional=True,
-                            dropout=config.dropout, batch_first=True)
+                            num_layers=1, bidirectional=True, batch_first=True)
 
         self.lstm = StackedLSTM(self.num_layers, input_size=config.hidden_dim, config=config)
         # Maps the output of the LSTM into tag space.

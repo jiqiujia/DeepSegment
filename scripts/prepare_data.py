@@ -17,6 +17,7 @@ opt = parser.parse_args()
 
 logger = utils.init_logger("torch", logging_path='')
 
+# TODO: 处理~分隔符
 STS_SEPARATOR_REGEX = '[,，！!。？?:：;；~]|[-.=]{2,}'
 
 

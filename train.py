@@ -33,6 +33,12 @@ def save_model(path, model, optim, updates, config):
     }
     torch.save(checkpoints, path)
 
+def getPR(pred, gt, label):
+    all_b_tags = pred == tgt_vocab.lookup('B')
+    all_b_labels = gt == tgt_vocab.lookup('B')
+    intersection = np.sum(np.logical_and(all_b_labels, all_b_tags))
+    return intersection, np.sum(all_b_tags), np.sum(all_b_labels)
+
 def eval(valid_iter, model, config, best_loss, tgt_vocab):
     with torch.no_grad():
         model.eval()
@@ -63,13 +69,11 @@ def eval(valid_iter, model, config, best_loss, tgt_vocab):
             report_loss_total += score
             num_updates += 1
 
-            all_b_tags = all_tags == tgt_vocab.lookup('B')
-            all_b_labels = all_labels == tgt_vocab.lookup('B')
-            intersection = np.sum(np.logical_and(all_b_labels, all_b_tags))
+            intersection, sum_b_tags, sum_b_labels = getPR(all_tags, all_labels, tgt_vocab.lookup('B'))
             precision += intersection
-            total_precision += np.sum(all_b_tags)
+            total_precision += sum_b_tags
             recall += intersection
-            total_recall += np.sum(all_b_labels)
+            total_recall += sum_b_labels
             # print(inputs[0])
             # print(labels[0])
             # print(tag_seq[0])
