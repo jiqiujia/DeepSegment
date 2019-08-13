@@ -40,7 +40,7 @@ output = model(x, lengths)
 print('output', output)
 
 torch.onnx.export(model,  # model being run
-                  x,  # model input (or a tuple for multiple inputs)
+                  (x, lengths),  # model input (or a tuple for multiple inputs)
                   "deepsegment.onnx",  # where to save the model (can be a file or file-like object)
                   export_params=True,  # store the trained parameter weights inside the model file
                   opset_version=10,  # the onnx version to export the model to

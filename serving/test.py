@@ -26,6 +26,8 @@ model = test()
 
 input = torch.ones((1,3)).long()
 output = model(input)
+print('output', output)
+
 torch.onnx.export(model,  # model being run
                   input,
                   'test.onnx',
