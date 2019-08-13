@@ -19,7 +19,7 @@ metrics: ['mle']
 # Optimization
 num_epoch: 1000000
 optim: 'adam'
-learning_rate: 0.1
+learning_rate: 1
 learning_rate_decay: 0.95
 start_decay_steps: 10000
 decay_method: "noam"
@@ -33,11 +33,11 @@ schesamp: False # Scheduled sampling
 
 
 # Model
-model: "bilstm_crf"
+model: "transformer_crf"
 embed_only: False
 positional: True
-heads: 8
-d_ff: 2048
+heads: 4
+d_ff: 1024
 convolutional: False
 residual: True
 attention: 'luong_gate'
@@ -49,7 +49,7 @@ num_layers: 4
 bidirectional: True
 enc_num_layers: 4
 dec_num_layers: 2
-dropout: 0
+dropout: 0.1
 emb_dropout: 0.1
 swish: False
 length_norm: True

@@ -38,7 +38,7 @@ model: "transformer_crf"
 embed_only: False
 positional: True
 heads: 4
-d_ff: 512
+d_ff: 1024
 convolutional: False
 enc_num_layers: 4
 param_init: 0

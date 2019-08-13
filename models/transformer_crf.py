@@ -26,15 +26,19 @@ class TransformerCRF(nn.Module):
         self.crf = CRF(self.tagset_size, config)
 
     def neg_log_likelihood(self, sentence, tags, lengths):
+        sentence = sentence.transpose(0, 1)
         feats = self.transformer(sentence)
         feats = self.hidden2tag(feats)
+        feats = feats.transpose(0, 1)
         forward_score = self.crf(feats, lengths)
         gold_score = self.crf.score(feats, tags, lengths)
         return forward_score - gold_score
 
     def forward(self, sentence, lengths):
+        sentence = sentence.transpose(0, 1)
         feats = self.transformer(sentence)
         feats = self.hidden2tag(feats)
+        feats = feats.transpose(0, 1)
 
         # Find the best path, given the features.
         score, tag_seq = self.crf.decode(feats, lengths)
