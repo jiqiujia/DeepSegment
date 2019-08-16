@@ -28,9 +28,9 @@ input = torch.ones((1,3)).long()
 output = model(input)
 print('output', output)
 
-torch.onnx.export(model,  # model being run
-                  input,
-                  'test.onnx',
-                  example_outputs=output)
-# torch.jit.trace(net, (torch.ones((1,3)).long(), torch.ones((3,1))), check_trace=False)
-# print(output.shape)
+# torch.onnx.export(model,  # model being run
+#                   input,
+#                   'test.onnx',
+#                   example_outputs=output)
+#torch.jit.trace(model, (torch.ones((1,3)).long(), torch.ones((3,1))), check_trace=False)
+model.save('lstm_test.pt')

@@ -60,8 +60,8 @@ class CRF(nn.Module):
         max_len = torch.max(lengths)
         mask = torch.arange(max_len).expand(len(lengths), max_len) < lengths.unsqueeze(1)
         # initialize backpointers and viterbi variables in log space
-        bptr = torch.zeros((h.shape[0], max_len, self.num_tags))
-        score = torch.Tensor(h.shape[0], self.num_tags).fill_(-10000.)
+        bptr = torch.zeros((h.shape[0], max_len, self.num_tags), dtype=torch.int32)
+        score = torch.ones(h.shape[0], self.num_tags).fill_(-10000.)
         score[:, self.start_tag] = 0.
 
         for t in range(h.size(1)): # recursion through the sequence
@@ -76,12 +76,11 @@ class CRF(nn.Module):
         best_score, best_tag = torch.max(score, 1)
 
         # back-tracking
-        bptr = bptr.tolist()
         best_path = [[i] for i in best_tag.tolist()]
         for b in range(h.shape[0]):
             x = best_tag[b] # best tag
             y = int(mask[b].sum().item())
-            for bptr_t in reversed(bptr[b][:y]):
+            for bptr_t in reversed(bptr[b, :y]):
                 x = bptr_t[x]
                 best_path[b].append(x)
             best_path[b].pop()
