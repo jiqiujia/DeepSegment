@@ -59,10 +59,10 @@ class CRF(torch.jit.ScriptModule):
     @torch.jit.script_method
     def decode(self, h, lengths): # Viterbi decoding
         max_len = torch.max(lengths)
-        mask = torch.arange(max_len).expand(len(lengths), max_len) < lengths.unsqueeze(1)
+        mask = torch.arange(max_len).expand(len(lengths), max_len) < lengths.unsqueeze(1).float()
         # initialize backpointers and viterbi variables in log space
-        bptr = torch.LongTensor()
-        score = torch.Tensor(h.shape[0], self.num_tags).fill_(-10000.)
+        bptr = torch.zeros(h.shape[0], max_len, self.num_tags, dtype=torch.int32)
+        score = torch.ones(h.shape[0], self.num_tags) * -10000.
         score[:, self.start_tag] = 0.
 
         for t in range(h.size(1)): # recursion through the sequence
@@ -70,21 +70,21 @@ class CRF(torch.jit.ScriptModule):
             score_t = score.unsqueeze(1) + self.trans # [B, 1, C] -> [B, C, C]
             score_t, bptr_t = score_t.max(2) # best previous scores and tags
             score_t += h[:, t] # plus emission scores
-            bptr = torch.cat((bptr, bptr_t.unsqueeze(1)), 1)
+            bptr[:, t] = bptr_t.unsqueeze(1)
+            # bptr = torch.cat((bptr, bptr_t.unsqueeze(1)), 1)
             score = torch.where(mask_t, score_t, score)  # score_t * mask_t + score * (1 - mask_t)
         score += self.trans[self.end_tag]
         best_score, best_tag = torch.max(score, 1)
 
         # back-tracking
-        bptr = bptr.tolist()
-        best_path = [[i] for i in best_tag.tolist()]
-        for b in range(h.shape[0]):
-            x = best_tag[b] # best tag
-            y = int(mask[b].sum().item())
-            for bptr_t in reversed(bptr[b][:y]):
-                x = bptr_t[x]
-                best_path[b].append(x)
-            best_path[b].pop()
-            best_path[b].reverse()
+        # best_path = [[i] for i in best_tag.tolist()]
+        # for b in range(h.shape[0]):
+        #     x = best_tag[b] # best tag
+        #     y = int(mask[b].sum().item())
+        #     for bptr_t in reversed(bptr[b, :y]):
+        #         x = bptr_t[x]
+        #         best_path[b].append(x)
+        #     best_path[b].pop()
+        #     best_path[b].reverse()
 
-        return best_score
+        return best_score, best_tag

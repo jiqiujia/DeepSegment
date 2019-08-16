@@ -9,6 +9,7 @@ import numpy as np
 import opts
 import utils
 from serving.lstm_crf import BiLSTM_CRF
+from serving.reslstm_crf import ResLSTM_CRF
 from utils import misc_utils
 
 opt = opts.model_opts()
@@ -22,7 +23,7 @@ src_vocab.loadFile(os.path.join(config.data, "src.vocab"))
 tgt_vocab = utils.Dict()
 tgt_vocab.loadFile(os.path.join(config.data, "tgt.vocab"))
 
-model = BiLSTM_CRF(src_vocab.size(), tgt_vocab.size(), config)
+model = ResLSTM_CRF(src_vocab.size(), tgt_vocab.size(), config)
 checkpoint = torch.load(config.restore, lambda storage, loc: storage)
 # print(model.state_dict().keys())
 # print(checkpoint['model'].keys())

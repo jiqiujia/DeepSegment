@@ -63,8 +63,8 @@ def preprocess(x: str):
 
 
 # testCats = ['cloth']
-with io.open("testxhsOut.txt", 'w+', encoding='utf-8') as fout:
-    with io.open("../data/deepsegment/testdata/xhs.txt", encoding='utf-8') as fin:
+with io.open("testOut.txt", 'w+', encoding='utf-8') as fout:
+    with io.open("../data/deepsegment/testdata/randomDescs.txt", encoding='utf-8') as fin:
         oriSrcList = []
         srcList = []
         srcIdList = []
@@ -95,7 +95,7 @@ with io.open("testxhsOut.txt", 'w+', encoding='utf-8') as fout:
         srcLenList = [srcLenList[i] for i in indices]
         # catList = [catList[i] for i in indices]
 
-        # srcList = srcList[:]
+        srcList = srcList[:2]
         resList = []
         addOne = 1 if (len(srcList) % batch_size) else 0
         batch_num = len(srcList) // batch_size + addOne

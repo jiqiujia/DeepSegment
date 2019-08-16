@@ -31,7 +31,7 @@ class BiLSTM_CRF(torch.jit.ScriptModule):
         # Maps the output of the LSTM into tag space.
         self.hidden2tag = nn.Linear(self.num_direction * config.hidden_dim, self.tagset_size)
 
-        # self.crf = CRF(self.tagset_size, config)
+        self.crf = CRF(self.tagset_size, config)
 
     @torch.jit.script_method
     def forward(self, sentence, lengths):
@@ -48,8 +48,8 @@ class BiLSTM_CRF(torch.jit.ScriptModule):
         # lstm_feats = self._get_lstm_features(sentence, lengths)
 
         # Find the best path, given the features.
-        # score = self.crf.decode(lstm_feats, lengths)
-        return lstm_feats
+        score = self.crf.decode(lstm_feats, lengths)
+        return score
 
 if __name__ == '__main__':
     import opts
