@@ -20,7 +20,7 @@ metrics: ['mle']
 num_epoch: 1000000
 optim: 'adam'
 learning_rate: 1
-learning_rate_decay: 0.95
+learning_rate_decay: 0.9
 start_decay_steps: 10000
 decay_method: "noam"
 beta1: 0.9
@@ -33,7 +33,7 @@ schesamp: False # Scheduled sampling
 
 
 # Model
-model: "transformer_crf"
+model: "reslstm_crf"
 embed_only: False
 positional: True
 heads: 4

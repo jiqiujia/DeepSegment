@@ -186,8 +186,12 @@ if __name__ == '__main__':
         )
     else:
         checkpoints = None
+
     if checkpoints is not None:
         model.load_state_dict(checkpoints["model"])
+        optim.optimizer.load_state_dict(checkpoints["optim"])
+        print(type(checkpoints['optim']), optim)
+        optim.set_parameters(model.parameters())
 
     print(repr(model) + "\n\n")
 
@@ -237,6 +241,8 @@ if __name__ == '__main__':
                     logger.info("{} loss {}".format(params["updates"], loss.item()))
                     best_loss = eval(valid_iter, model, config, best_loss, tgt_vocab)
                     model.train()
+                    # if params['updates'] > config.start_decay_steps:
+                    #     optim.updateLearningRate(e)
 
             if config.epoch_decay:
                 optim.updateLearningRate(e)

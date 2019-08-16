@@ -8,7 +8,7 @@ import numpy as np
 
 import opts
 import utils
-from model import BiLSTM_CRF
+from models import BiLSTM_CRF, ResLSTM_CRF, TransformerCRF
 from utils import misc_utils
 
 opt = opts.model_opts()
@@ -23,7 +23,15 @@ src_vocab.loadFile(os.path.join(config.data, "src.vocab"))
 tgt_vocab = utils.Dict()
 tgt_vocab.loadFile(os.path.join(config.data, "tgt.vocab"))
 
-model = BiLSTM_CRF(src_vocab.size(), tgt_vocab.size(), config)
+if config.model == 'bilstm_crf':
+    model = BiLSTM_CRF(src_vocab.size(), tgt_vocab.size(), config)
+elif config.model == 'reslstm_crf':
+    model = ResLSTM_CRF(src_vocab.size(), tgt_vocab.size(), config)
+elif config.model == 'transformer_crf':
+    model = TransformerCRF(src_vocab.size(), tgt_vocab.size(), config)
+else:
+    model = None
+    raise NotImplementedError(config.model + " not implemented!")
 checkpoint = torch.load(config.restore, lambda storage, loc: storage)
 print(model.state_dict().keys())
 print(checkpoint['model'].keys())
@@ -34,11 +42,11 @@ model.to(device)
 # TODO: half precision has limited support on cpu
 # model = model.half()
 
-x = torch.ones(32, 20).long()
-lengths = torch.ones(32).long() * 20
-print(model(x, lengths))
+# x = torch.ones(32, 20).long()
+# lengths = torch.ones(32).long() * 20
+# print(model(x, lengths))
 
-ILLEGAL_REGEX = r"[^-\u4e00-\u9fff0-9a-zA-Z.]"
+ILLEGAL_REGEX = r"[^-\u4e00-\u9fff0-9a-zA-Z.、/]"
 
 
 def preprocess(x: str):
@@ -55,20 +63,20 @@ def preprocess(x: str):
 
 
 # testCats = ['cloth']
-with io.open("testOut.txt", 'w+', encoding='utf-8') as fout:
-    with io.open("randomDescs.txt", encoding='utf-8') as fin:
+with io.open("testxhsOut.txt", 'w+', encoding='utf-8') as fout:
+    with io.open("../data/deepsegment/testdata/xhs.txt", encoding='utf-8') as fin:
         oriSrcList = []
         srcList = []
         srcIdList = []
         srcLenList = []
-        catList = []
+        # catList = []
 
         batch_size = config.batch_size
         cnt = 0
         for line in fin.readlines():
             arr = line.strip().split("\t")
             line = preprocess(arr[0])
-            cat = arr[1]
+            # cat = arr[1]
             chars = [c for c in line]
             ids = src_vocab.convertToIdx(chars, utils.UNK_WORD)
             # print(chars, ids)
@@ -77,7 +85,7 @@ with io.open("testOut.txt", 'w+', encoding='utf-8') as fout:
             srcList.append(line)
             srcIdList.append(ids)
             srcLenList.append(len(ids))
-            catList.append(cat)
+            # catList.append(cat)
             cnt += 1
         # packed rnn sequence needs lengths to be in decreasing order
         indices = np.argsort(srcLenList)[::-1]
@@ -85,9 +93,9 @@ with io.open("testOut.txt", 'w+', encoding='utf-8') as fout:
         srcList = [srcList[i] for i in indices]
         srcIdList = [srcIdList[i] for i in indices]
         srcLenList = [srcLenList[i] for i in indices]
-        catList = [catList[i] for i in indices]
+        # catList = [catList[i] for i in indices]
 
-        # srcList = srcList[:2]
+        # srcList = srcList[:]
         resList = []
         addOne = 1 if (len(srcList) % batch_size) else 0
         batch_num = len(srcList) // batch_size + addOne
@@ -108,7 +116,7 @@ with io.open("testOut.txt", 'w+', encoding='utf-8') as fout:
             with torch.no_grad():
                 score, tag_seq = model(xs, lengths)
                 for tags in tag_seq:
-                    candidates = ''.join(tgt_vocab.convertToLabels(tags, utils.EOS))
+                    candidates = ''.join(tgt_vocab.convertToLabels(tags, utils.PAD))
                     resList.append(candidates)
 
         for oriSrc, src, res in zip(oriSrcList, srcList, resList):
