@@ -69,10 +69,13 @@ class ResLSTM_CRF(nn.Module):
         gold_score = self.crf.score(feats, tags, lengths)
         return forward_score - gold_score
 
-    def forward(self, sentence, lengths):
+    def forward(self, sentence, lengths, nbest=1):
         # Get the emission scores from the BiLSTM
         lstm_feats = self._get_lstm_features(sentence, lengths)
 
         # Find the best path, given the features.
-        score, tag_seq = self.crf.decode(lstm_feats, lengths)
+        if nbest <= 1:
+            score, tag_seq = self.crf.decode(lstm_feats, lengths)
+        else:
+            score, tag_seq = self.crf.decode_nbest(lstm_feats, lengths, nbest)
         return score, tag_seq

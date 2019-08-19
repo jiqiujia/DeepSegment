@@ -42,4 +42,6 @@ def model_opts():
                         help="Truncate target sequence length")
     parser.add_argument('--lower', action='store_true',
                         help='lower the case')
+    parser.add_argument('--nbest', type=int, default=0,
+                        help='number for nbest decoding')
     return parser.parse_args()

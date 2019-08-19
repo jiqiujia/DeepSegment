@@ -2,6 +2,7 @@ import torch
 import torch.nn as nn
 import utils
 from utils.util_functions import *
+import torch.nn.functional as F
 
 class CRF(nn.Module):
     # __constants__ = ['device']
@@ -69,7 +70,7 @@ class CRF(nn.Module):
             score_t = score.unsqueeze(1) + self.trans # [B, 1, C] -> [B, C, C]
             score_t, bptr_t = score_t.max(2) # best previous scores and tags
             score_t += h[:, t] # plus emission scores
-            bptr[:, t] = bptr_t.unsqueeze(1)
+            bptr[:, t] = bptr_t#.unsqueeze(1)
             # bptr = torch.cat((bptr, bptr_t.unsqueeze(1)), 1)
             score = torch.where(mask_t, score_t, score)  # score_t * mask_t + score * (1 - mask_t)
         score += self.trans[self.end_tag]
@@ -81,9 +82,175 @@ class CRF(nn.Module):
             x = best_tag[b] # best tag
             y = int(mask[b].sum().item())
             for bptr_t in reversed(bptr[b, :y]):
-                x = bptr_t[x]
+                x = bptr_t[x].item()
                 best_path[b].append(x)
             best_path[b].pop()
             best_path[b].reverse()
 
         return best_score, best_path
+
+    def decode_nbest(self, feats, lengths, nbest):
+        """
+            input:
+                feats: (batch, seq_len, self.tag_size+2)
+                lengths: (batch, 1)
+            output:
+                decode_idx: (batch, nbest, seq_len) decoded sequence
+                path_score: (batch, nbest) corresponding score for each sequence (to be implementated)
+                nbest decode for sentence with one token is not well supported, to be optimized
+        """
+        batch_size = feats.size(0)
+        seq_len = feats.size(1)
+        tag_size = feats.size(2)
+        assert (tag_size == self.num_tags)
+
+        max_len = torch.max(lengths)
+        mask = torch.arange(max_len).expand(len(lengths), max_len) < lengths.unsqueeze(1)
+
+        ## calculate sentence length for each sentence
+        ## mask to (seq_len, batch_size)
+        mask = mask.transpose(1, 0).contiguous()
+        ins_num = seq_len * batch_size
+        ## be careful the view shape, it is .view(ins_num, 1, tag_size) but not .view(ins_num, tag_size, 1)
+        feats = feats.transpose(1, 0).contiguous().view(ins_num, 1, tag_size).expand(ins_num, tag_size, tag_size)
+        ## need to consider start
+        scores = feats + self.trans.view(1, tag_size, tag_size).expand(ins_num, tag_size, tag_size)
+        scores = scores.view(seq_len, batch_size, tag_size, tag_size)
+
+        # build iter
+        seq_iter = enumerate(scores)
+        ## record the position of best score
+        back_points = list()
+        partition_history = list()
+        ##  reverse mask (bug for mask = 1- mask, use this as alternative choice)
+        # mask = 1 + (-1)*mask
+        mask = (1 - mask.long()).byte()
+        _, inivalues = next(seq_iter)  # bat_size * from_target_size * to_target_size
+        # only need start from start_tag
+        partition = inivalues[:, self.start_tag, :].clone()  # bat_size * to_target_size
+        ## initial partition [batch_size, tag_size]
+        partition_history.append(partition.view(batch_size, tag_size, 1).expand(batch_size, tag_size, nbest))
+        # iter over last scores
+        for idx, cur_values in seq_iter:
+            if idx == 1:
+                cur_values = cur_values.view(batch_size, tag_size, tag_size) + partition.contiguous().view(batch_size,
+                                                                                                           tag_size,
+                                                                                                           1).expand(
+                    batch_size, tag_size, tag_size)
+            else:
+                # previous to_target is current from_target
+                # partition: previous results log(exp(from_target)), #(batch_size * nbest * from_target)
+                # cur_values: batch_size * from_target * to_target
+                cur_values = cur_values.view(batch_size, tag_size, 1, tag_size).expand(batch_size, tag_size, nbest,
+                                                                                       tag_size) + partition.contiguous().view(
+                    batch_size, tag_size, nbest, 1).expand(batch_size, tag_size, nbest, tag_size)
+                ## compare all nbest and all from target
+                cur_values = cur_values.view(batch_size, tag_size * nbest, tag_size)
+                # print "cur size:",cur_values.size()
+            partition, cur_bp = torch.topk(cur_values, nbest, 1)
+            ## cur_bp/partition: [batch_size, nbest, tag_size], id should be normize through nbest in following backtrace step
+            # print partition[:,0,:]
+            # print cur_bp[:,0,:]
+            # print "nbest, ",idx
+            if idx == 1:
+                cur_bp = cur_bp * nbest
+            partition = partition.transpose(2, 1)
+            cur_bp = cur_bp.transpose(2, 1)
+
+            # print partition
+            # exit(0)
+            # partition: (batch_size * to_target * nbest)
+            # cur_bp: (batch_size * to_target * nbest) Notice the cur_bp number is the whole position of tag_size*nbest, need to convert when decode
+            partition_history.append(partition)
+            ## cur_bp: (batch_size,nbest, tag_size) topn source score position in current tag
+            ## set padded label as 0, which will be filtered in post processing
+            ## mask[idx] ? mask[idx-1]
+            cur_bp.masked_fill_(mask[idx].view(batch_size, 1, 1).expand(batch_size, tag_size, nbest), 0)
+            # print cur_bp[0]
+            back_points.append(cur_bp)
+        ### add score to final end_tag
+        partition_history = torch.cat(partition_history, 0).view(seq_len, batch_size, tag_size, nbest).transpose(1,
+                                                                                                                 0).contiguous()  ## (batch_size, seq_len, nbest, tag_size)
+        ### get the last position for each setences, and select the last partitions using gather()
+        last_position = lengths.view(batch_size, 1, 1, 1).expand(batch_size, 1, tag_size, nbest) - 1
+        last_partition = torch.gather(partition_history, 1, last_position).view(batch_size, tag_size, nbest, 1)
+        ### calculate the score from last partition to end state (and then select the end_tag from it)
+        last_values = last_partition.expand(batch_size, tag_size, nbest, tag_size) + self.trans.view(1, tag_size,
+                                                                                                           1,
+                                                                                                           tag_size).expand(
+            batch_size, tag_size, nbest, tag_size)
+        last_values = last_values.view(batch_size, tag_size * nbest, tag_size)
+        end_partition, end_bp = torch.topk(last_values, nbest, 1)
+        ## end_partition: (batch, nbest, tag_size)
+        end_bp = end_bp.transpose(2, 1)
+        # end_bp: (batch, tag_size, nbest)
+        pad_zero = torch.zeros(batch_size, tag_size, nbest).long()
+        # if self.gpu:
+        pad_zero = pad_zero.to(self.device)
+        back_points.append(pad_zero)
+        back_points = torch.cat(back_points).view(seq_len, batch_size, tag_size, nbest)
+
+        ## select end ids in end_tag
+        pointer = end_bp[:, self.end_tag, :]  ## (batch_size, nbest)
+        insert_last = pointer.contiguous().view(batch_size, 1, 1, nbest).expand(batch_size, 1, tag_size, nbest)
+        back_points = back_points.transpose(1, 0).contiguous()
+        ## move the end ids(expand to tag_size) to the corresponding position of back_points to replace the 0 values
+        # print "lp:",last_position
+        # print "il:",insert_last[0]
+        # exit(0)
+        ## copy the ids of last position:insert_last to back_points, though the last_position index
+        ## last_position includes the length of batch sentences
+        # print "old:", back_points[9,0,:,:]
+        back_points.scatter_(1, last_position, insert_last)
+        ## back_points: [batch_size, seq_length, tag_size, nbest]
+        # print "new:", back_points[9,0,:,:]
+        # exit(0)
+        # print pointer[2]
+        '''
+        back_points: in simple demonstratration
+        x,x,x,x,x,x,x,x,x,7
+        x,x,x,x,x,4,0,0,0,0
+        x,x,6,0,0,0,0,0,0,0
+        '''
+
+        back_points = back_points.transpose(1, 0).contiguous()
+        # print back_points[0]
+        ## back_points: (seq_len, batch, tag_size, nbest)
+        ## decode from the end, padded position ids are 0, which will be filtered in following evaluation
+        decode_idx = torch.LongTensor(seq_len, batch_size, nbest)
+        # if self.gpu:
+        decode_idx = decode_idx.to(self.device)
+        decode_idx[-1] = pointer.data / nbest
+        # print "pointer-1:",pointer[2]
+        # exit(0)
+        # use old mask, let 0 means has token
+        for idx in range(len(back_points) - 2, -1, -1):
+            # print "pointer: ",idx,  pointer[3]
+            # print "back:",back_points[idx][3]
+            # print "mask:",mask[idx+1,3]
+            new_pointer = torch.gather(back_points[idx].view(batch_size, tag_size * nbest), 1,
+                                       pointer.contiguous().view(batch_size, nbest))
+            decode_idx[idx] = new_pointer.data / nbest
+            # # use new pointer to remember the last end nbest ids for non longest
+            pointer = new_pointer + pointer.contiguous().view(batch_size, nbest) * mask[idx].view(batch_size, 1).expand(
+                batch_size, nbest).long()
+
+        # exit(0)
+        path_score = None
+        decode_idx = decode_idx.transpose(1, 0)
+        ## decode_idx: [batch, seq_len, nbest]
+        # print decode_idx[:,:,0]
+        # print "nbest:",nbest
+        # print "diff:", decode_idx[:,:,0]- decode_idx[:,:,4]
+        # print decode_idx[:,0,:]
+        # exit(0)
+
+        ### calculate probability for each sequence
+        scores = end_partition[:, :, self.end_tag]
+        ## scores: [batch_size, nbest]
+        max_scores, _ = torch.max(scores, 1)
+        minus_scores = scores - max_scores.view(batch_size, 1).expand(batch_size, nbest)
+        path_score = F.softmax(minus_scores, 1)
+        ## path_score: [batch_size, nbest]
+        # exit(0)
+        return path_score, decode_idx

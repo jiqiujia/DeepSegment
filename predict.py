@@ -61,6 +61,7 @@ def preprocess(x: str):
     x = re.sub('\\.{2,}', '', x)
     return x
 
+oovs = {0: 'B', 1:'B'}
 
 # testCats = ['cloth']
 with io.open("testOut.txt", 'w+', encoding='utf-8') as fout:
@@ -95,7 +96,7 @@ with io.open("testOut.txt", 'w+', encoding='utf-8') as fout:
         srcLenList = [srcLenList[i] for i in indices]
         # catList = [catList[i] for i in indices]
 
-        srcList = srcList[:2]
+        # srcList = srcList[:2]
         resList = []
         addOne = 1 if (len(srcList) % batch_size) else 0
         batch_num = len(srcList) // batch_size + addOne
@@ -114,21 +115,41 @@ with io.open("testOut.txt", 'w+', encoding='utf-8') as fout:
             lengths = torch.tensor(lengths).to(device)
 
             with torch.no_grad():
-                score, tag_seq = model(xs, lengths)
-                for tags in tag_seq:
-                    candidates = ''.join(tgt_vocab.convertToLabels(tags, utils.PAD))
-                    resList.append(candidates)
+                score, tag_seq = model(xs, lengths, config.nbest)
+                if config.nbest <= 1:
+                    for tags in tag_seq:
+                        candidates = [''.join(tgt_vocab.convertToLabels(tags, utils.PAD))]
+                        resList.append(candidates)
+                else:
+                    tag_seq = tag_seq.cpu().numpy()
+                    for nbest_tags in tag_seq:
+                        nbest_tags = np.transpose(nbest_tags)
+                        # print(nbest_tags)
+                        candidates = [''.join(tgt_vocab.convertToLabels(tags, utils.PAD, oovs=oovs)) for tags in nbest_tags]
+                        resList.append(candidates)
 
         for oriSrc, src, res in zip(oriSrcList, srcList, resList):
             fout.write(oriSrc + '\n')
-            tmp = []
-            idx = 0
-            for x, y in zip(src, res):
-                if y == 'b' and idx > 0:
-                    fout.write(''.join(tmp) + '\n')
+            split_stses_list = []
+            for nbest_y in res:
+                split_stses = []
+                tmp = []
+                for i, (x, y) in enumerate(zip(src, nbest_y)):
+                    if y == 'b' and i > 0:
+                        split_stses.append(''.join(tmp))
+                        tmp = []
+                    tmp.append(x)
+                if len(tmp) > 0:
+                    split_stses.append(''.join(tmp))
                     tmp = []
-                tmp.append(x)
-                idx += 1
-            fout.write(''.join(tmp) + "\n\n")
-
-        fout.write("\n####################################\n\n")
+                split_stses_list.append(split_stses)
+            max_sts_num = max([len(split_stses) for split_stses in split_stses_list])
+            for si in range(max_sts_num):
+                tmp = []
+                for i in range(len(split_stses_list)):
+                    if si < len(split_stses_list[i]):
+                        tmp.append(split_stses_list[i][si])
+                    else:
+                        tmp.append('')
+                fout.write('\t'.join(tmp) + '\n')
+            fout.write('\n')
