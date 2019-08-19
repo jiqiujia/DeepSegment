@@ -23,7 +23,7 @@ src_vocab.loadFile(os.path.join(config.data, "src.vocab"))
 tgt_vocab = utils.Dict()
 tgt_vocab.loadFile(os.path.join(config.data, "tgt.vocab"))
 
-model = BiLSTM_CRF(src_vocab.size(), tgt_vocab.size(), config)
+model = ResLSTM_CRF(src_vocab.size(), tgt_vocab.size(), config)
 checkpoint = torch.load(config.restore, lambda storage, loc: storage)
 # print(model.state_dict().keys())
 # print(checkpoint['model'].keys())
@@ -44,5 +44,5 @@ lengths = torch.ones(batch_size).long() * length
 traced_scripts_module = torch.jit.trace(model, (x, lengths))
 print(traced_scripts_module)
 print(traced_scripts_module(x, lengths))
-traced_scripts_module.save('deepsegment_bilstm.pt')
+traced_scripts_module.save('deepsegment_reslstm.pt')
 
