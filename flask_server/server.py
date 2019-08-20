@@ -54,20 +54,6 @@ class Server(object):
 
         self.oovs = {0: 'B', 1: 'B'}
 
-    def to_json(self, brand_results):
-        json_results = []
-        for brand_result in brand_results:
-            json_dic = {}
-            json_dic['text'] = brand_result.target
-            json_dic['brands'] = []
-            for word_result in brand_result.predict_brand_info:
-                word_dic = {}
-                word_dic['start_offset'] = word_result.start_offset
-                word_dic['word'] = word_result.word
-                json_dic['brands'].append(word_dic)
-            json_results.append(json_dic)
-        return json.dumps(json_results, ensure_ascii=False)
-
     def preprocess(self, x: str):
         x = re.sub("&amp;?", "&", x, flags=re.IGNORECASE)
         x = re.sub("&#x0a;?", "", x, flags=re.IGNORECASE)
@@ -174,11 +160,24 @@ class Server(object):
                                       in nbest_tags]
                         resList.append(candidates)
 
-            print(resList)
             for i, res in enumerate(resList):
-                print(ori_xs[i], xs[i])
                 stses = self.get_aligned_stses(ori_xs[i], xs[i], res[0])
-                print(stses)
                 stses_list.append(stses)
 
         return stses_list
+
+if __name__ == '__main__':
+    from argparse import Namespace
+    import opts
+    import yaml
+    from utils import misc_utils
+
+    opt = opts.model_opts()
+    config = yaml.load(open(opt.config, "r"))
+    config = Namespace(**config, **vars(opt))
+
+    device, devices_id = misc_utils.set_cuda(config)
+    config.device = device
+
+    server = Server(config)
+    print(server.batch_predict_line(["为什么你的脸一到换季就干，手也干，起皮，过敏！更换季节是一部分原因更多的是因为洗面奶含碱性太高 经常用碱性洗面奶洗脸洗掉了保湿的皮脂膜！"]))
