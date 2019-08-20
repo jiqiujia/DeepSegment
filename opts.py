@@ -44,4 +44,9 @@ def model_opts():
                         help='lower the case')
     parser.add_argument('--nbest', type=int, default=0,
                         help='number for nbest decoding')
+
+    # for serving
+    parser.add_argument('--url_root', type=str, default='/nlp', help='url for servign')
+    parser.add_argument('--ip', type=str, default='0.0.0.0', help='server ip')
+    parser.add_argument('--port', type=int, default=8080, help='server port')
     return parser.parse_args()
