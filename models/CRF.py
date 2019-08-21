@@ -92,39 +92,53 @@ class CRF(nn.Module):
 
         return best_score, best_path
 
-
+    # 要注意每一维的涵义，以及trans矩阵是从哪一维forward到哪一维
     def decode_nbest(self, h, lengths, nbest):  # Viterbi decoding
         batch_size = h.shape[0]
         max_len = h.shape[1]
         tag_size = h.shape[2]
         mask = torch.arange(max_len).expand(len(lengths), max_len) < lengths.unsqueeze(1)
         # initialize backpointers and viterbi variables in log space
-        bptr = torch.zeros((batch_size, max_len, nbest, self.num_tags), dtype=torch.int32) # nbest from_tags for to_tags
-        score = torch.ones(batch_size, nbest, self.num_tags).fill_(-10000.)
-        score[:, :, self.start_tag] = 0.
+        bptr = torch.zeros((batch_size, max_len, self.num_tags, nbest), dtype=torch.long)  # nbest from_tags for to_tags
+        score = torch.ones(batch_size, self.num_tags, nbest).fill_(-10000.) # 当前每个tag的nbest个结果
+        score[:, self.start_tag, :] = 0.
 
         for t in range(h.size(1)):  # recursion through the sequence
-            mask_t = mask[:, t].view(batch_size, 1, 1).expand(batch_size, nbest, tag_size)
-            score_t = score.view(batch_size, nbest, 1, tag_size).expand(batch_size, nbest, tag_size, tag_size) + \
-                      self.trans.view(1, 1, tag_size, tag_size).expand(batch_size, nbest, tag_size, tag_size)  # [B, NB, 1, C] -> [B, NB, C, C]
-            score_t = score_t.view(batch_size, tag_size * nbest, tag_size)
-            score_t, bptr_t = torch.topk(score_t, nbest, dim=1)  # best previous scores and tags  # [B, NB, C]
-            score_t += h[:, t].view(batch_size, 1, tag_size)  # plus emission scores
-            bptr[:, t] = bptr_t # .unsqueeze(1)
-            bptr[:, t].masked_fill_(mask_t, 0)
+            mask_t = mask[:, t].view(batch_size, 1, 1).expand(batch_size, tag_size, nbest)
+            # nbest 放在最后一维，考虑下面要 //nbest
+            score_t = score.view(batch_size, 1, tag_size, nbest).expand(batch_size, tag_size, tag_size, nbest) + \
+                      self.trans.view(1, tag_size, tag_size, 1).expand(batch_size, tag_size, tag_size, nbest)  # [B, 1, NB, C] -> [B, C, NB, C]
+            score_t = score_t.view(batch_size, tag_size, tag_size * nbest)
+            score_t, bptr_t = torch.topk(score_t, nbest, dim=2)  # best previous scores and tags  # [B, C, NB]
+            score_t += h[:, t].view(batch_size, tag_size, 1)  # plus emission scores
+            bptr[:, t] = bptr_t  # .unsqueeze(1)
+            bptr[:, t].masked_fill_(torch.bitwise_not(mask_t), 0)
             score = torch.where(mask_t, score_t, score)  # score_t * mask_t + score * (1 - mask_t)
-        score = score + self.trans[self.end_tag]
-        best_score, best_tags = torch.topk(score, 1, dim=2)  # [B, NB] 最后一个状态，每个batch得到nbest个标签
+        score_last = score.view(batch_size, 1, tag_size, nbest).expand(batch_size, tag_size, tag_size, nbest) + \
+                      self.trans.view(1, tag_size, tag_size, 1).expand(batch_size, tag_size, tag_size, nbest)  # [B, 1, NB, C] -> [B, C, NB, C]
+        score = score_last.view(batch_size, tag_size, tag_size * nbest)
+        best_score, best_tags = torch.topk(score, nbest, dim=2)  # [B, NB] 最后一个状态，每个batch得到nbest个标签
+        best_score = best_score[:, self.end_tag]
+        best_tags = best_tags[:, self.end_tag].long()
 
         # back-tracking
         # decode_idx = torch.zeros(batch_size, max_len, nbest, dtype=torch.int32)
-        best_path = [[tags] for tags in best_tags.tolist()]
+        best_path = [[tags // nbest] for tags in best_tags]
         for b in range(h.shape[0]):
             tags = best_tags[b]  # best tags
             for bptr_t in reversed(bptr[b, :lengths[b]]):
-                tags = bptr_t[tags].item() // nbest
-                best_path[b].append(tags)
+                tags = torch.gather(bptr_t.reshape(-1), 0, tags)
+                best_path[b].append(tags // nbest)
             best_path[b].pop()
             best_path[b].reverse()
 
-        return best_score, best_path
+        batch_nbest_paths = []
+        for bpath in best_path:
+            nbest_paths = []
+            for i in range(nbest):
+                path = []
+                for tags in bpath:
+                    path.append(tags[i].item())
+                nbest_paths.append(path)
+            batch_nbest_paths.append(nbest_paths)
+        return best_score, batch_nbest_paths

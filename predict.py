@@ -96,7 +96,7 @@ with io.open("testOut.txt", 'w+', encoding='utf-8') as fout:
         srcLenList = [srcLenList[i] for i in indices]
         # catList = [catList[i] for i in indices]
 
-        # srcList = srcList[:2]
+        srcList = srcList[:8]
         resList = []
         addOne = 1 if (len(srcList) % batch_size) else 0
         batch_num = len(srcList) // batch_size + addOne
@@ -116,15 +116,14 @@ with io.open("testOut.txt", 'w+', encoding='utf-8') as fout:
 
             with torch.no_grad():
                 score, tag_seq = model(xs, lengths, config.nbest)
-                if config.nbest <= 1:
+                if config.nbest < 1:
                     for tags in tag_seq:
                         candidates = [''.join(tgt_vocab.convertToLabels(tags, utils.PAD))]
                         resList.append(candidates)
                 else:
-                    tag_seq = tag_seq.cpu().numpy()
+                    # tag_seq = tag_seq.cpu().numpy()
                     for nbest_tags in tag_seq:
-                        nbest_tags = np.transpose(nbest_tags)
-                        # print(nbest_tags)
+                        # nbest_tags = np.transpose(nbest_tags)
                         candidates = [''.join(tgt_vocab.convertToLabels(tags, utils.PAD, oovs=oovs)) for tags in nbest_tags]
                         resList.append(candidates)
 

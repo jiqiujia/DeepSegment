@@ -74,7 +74,7 @@ class ResLSTM_CRF(nn.Module):
         lstm_feats = self._get_lstm_features(sentence, lengths)
 
         # Find the best path, given the features.
-        if nbest <= 1:
+        if nbest < 1:
             score, tag_seq = self.crf.decode(lstm_feats, lengths)
         else:
             score, tag_seq = self.crf.decode_nbest(lstm_feats, lengths, nbest)
