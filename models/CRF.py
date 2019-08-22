@@ -94,6 +94,7 @@ class CRF(nn.Module):
 
     # 要注意每一维的涵义，以及trans矩阵是从哪一维forward到哪一维
     def decode_nbest(self, h, lengths, nbest):  # Viterbi decoding
+        assert nbest <= self.num_tags
         batch_size = h.shape[0]
         max_len = h.shape[1]
         tag_size = h.shape[2]
@@ -105,14 +106,19 @@ class CRF(nn.Module):
 
         for t in range(h.size(1)):  # recursion through the sequence
             mask_t = mask[:, t].view(batch_size, 1, 1).expand(batch_size, tag_size, nbest)
-            # nbest 放在最后一维，考虑下面要 //nbest
-            score_t = score.view(batch_size, 1, tag_size, nbest).expand(batch_size, tag_size, tag_size, nbest) + \
-                      self.trans.view(1, tag_size, tag_size, 1).expand(batch_size, tag_size, tag_size, nbest)  # [B, 1, NB, C] -> [B, C, NB, C]
-            score_t = score_t.view(batch_size, tag_size, tag_size * nbest)
+            if t==0:
+                score_t = self.trans.view(1, tag_size, tag_size).expand(batch_size, tag_size, tag_size)
+            else:
+                # nbest 放在最后一维，考虑下面要 //nbest
+                score_t = score.view(batch_size, 1, tag_size, nbest).expand(batch_size, tag_size, tag_size, nbest) + \
+                          self.trans.view(1, tag_size, tag_size, 1).expand(batch_size, tag_size, tag_size, nbest)  # [B, 1, NB, C] -> [B, C, NB, C]
+                score_t = score_t.view(batch_size, tag_size, tag_size * nbest)
             score_t, bptr_t = torch.topk(score_t, nbest, dim=2)  # best previous scores and tags  # [B, C, NB]
+            bptr_t.masked_fill_(torch.bitwise_not(mask_t), 0)
+            if t==0:
+                bptr_t = bptr_t * nbest
             score_t += h[:, t].view(batch_size, tag_size, 1)  # plus emission scores
             bptr[:, t] = bptr_t  # .unsqueeze(1)
-            bptr[:, t].masked_fill_(torch.bitwise_not(mask_t), 0)
             score = torch.where(mask_t, score_t, score)  # score_t * mask_t + score * (1 - mask_t)
         score_last = score.view(batch_size, 1, tag_size, nbest).expand(batch_size, tag_size, tag_size, nbest) + \
                       self.trans.view(1, tag_size, tag_size, 1).expand(batch_size, tag_size, tag_size, nbest)  # [B, 1, NB, C] -> [B, C, NB, C]

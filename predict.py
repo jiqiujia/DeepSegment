@@ -96,7 +96,7 @@ with io.open("testOut.txt", 'w+', encoding='utf-8') as fout:
         srcLenList = [srcLenList[i] for i in indices]
         # catList = [catList[i] for i in indices]
 
-        srcList = srcList[:8]
+        # srcList = srcList[:8]
         resList = []
         addOne = 1 if (len(srcList) % batch_size) else 0
         batch_num = len(srcList) // batch_size + addOne
