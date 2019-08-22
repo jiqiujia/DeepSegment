@@ -58,7 +58,7 @@ class CRF(nn.Module):
         score += self.trans[self.end_tag, last_tag]
         return score
 
-    def decode(self, h, lengths):  # Viterbi decoding
+    def decode(self, h, lengths, constrained_masks=None):  # Viterbi decoding
         h = h.cpu()
         lengths = lengths.cpu()
         trans = self.trans.cpu()
@@ -76,6 +76,8 @@ class CRF(nn.Module):
             score_t += h[:, t]  # plus emission scores
             bptr[:, t] = bptr_t  # .unsqueeze(1)
             # bptr = torch.cat((bptr, bptr_t.unsqueeze(1)), 1)
+            if constrained_masks is not None:
+                score_t = score_t * constrained_masks[:, t]
             score = torch.where(mask_t, score_t, score)  # score_t * mask_t + score * (1 - mask_t)
         score += trans[self.end_tag]
         best_score, best_tag = torch.max(score, 1)
@@ -93,7 +95,7 @@ class CRF(nn.Module):
         return best_score, best_path
 
     # 要注意每一维的涵义，以及trans矩阵是从哪一维forward到哪一维
-    def decode_nbest(self, h, lengths, nbest):  # Viterbi decoding
+    def decode_nbest(self, h, lengths, nbest):  # Viterbi nbest decoding
         assert nbest <= self.num_tags
         batch_size = h.shape[0]
         max_len = h.shape[1]
