@@ -22,7 +22,7 @@ def _is_valid_input(texts):
     return len(texts) > 0 and isinstance(texts, list) and all(isinstance(s, str) and s.strip() for s in texts)
 
 
-ILLEGAL_REGEX = r"[^-\u4e00-\u9fff0-9a-zA-Z.、/]"
+ILLEGAL_REGEX = r"[^-\u4e00-\u9fff0-9a-zA-Z.、/*×]"
 
 
 class Server(object):
@@ -59,21 +59,25 @@ class Server(object):
     def preprocess(self, x: str):
         x = re.sub("&amp;?", "&", x, flags=re.IGNORECASE)
         x = re.sub("&#x0a;?", "", x, flags=re.IGNORECASE)
+        x = re.sub("&apos;?", "'", x, flags=re.IGNORECASE)
         x = re.sub("&#x0020;?", "", x, flags=re.IGNORECASE)
         x = re.sub("&#x000a;?", "", x, flags=re.IGNORECASE)
-        x = re.sub("(https?|ftp|file)://[-a-zA-Z0-9+&@#/%?=~_|!:,.;]*[-a-zA-Z0-9+&@#/%=~_|]", "", x, flags=re.IGNORECASE)
+        x = re.sub("(https?|ftp|file)://[-a-zA-Z0-9+&@#/%?=~_|!:,.;]*[-a-zA-Z0-9+&@#/%=~_|]", "", x,
+                   flags=re.IGNORECASE)
         x = re.sub("\\[[^\\]]{1,3}\\]", "", x)
         x = re.sub('[-.=]{2,}', '', x)
+        x = re.sub(']]$', '', x)
         return x
 
-    def batchify(self, texts: List[str]):
+    def batchify(self, texts: List[str], batch_size=None):
         oriSrcList = []
         srcList = []
         srcIdList = []
         srcLenList = []
         tgtMaskList = []
 
-        batch_size = self.config.batch_size
+        if batch_size is None:
+            batch_size = self.config.batch_size
 
         cnt = 0
         for line in texts:
@@ -123,15 +127,16 @@ class Server(object):
         seg_stses = []
         tmpx = []
         while oi < len(ori_x) and xi < len(x):
-            if ori_x[oi] in ',，。！!?？【】':
-                oi += 1
-                continue
+            # if ori_x[oi] in ',，。！!?？【】':
+            #     oi += 1
+            #     continue
             if y[xi] == 'b' and xi > 0:
-                while ori_x[oi].lower() != x[xi].lower():
+                while ori_x[oi].lower() != x[xi]:
+                    tmpx += [ori_x[oi]]
                     oi += 1
                 seg_stses.append(''.join(tmpx))
                 tmpx = []
-            if ori_x[oi].lower() == x[xi].lower():
+            if ori_x[oi].lower() == x[xi]:
                 xi += 1
             tmpx += [ori_x[oi]]
             oi += 1
@@ -149,7 +154,7 @@ class Server(object):
         masks = []
         b_mark = False
         while oi < len(ori_x) and xi < len(x):
-            if ori_x[oi] == x[xi]:
+            if ori_x[oi].lower() == x[xi]:
                 xi += 1
                 if b_mark:
                     masks.append(mask)
@@ -160,16 +165,14 @@ class Server(object):
             else:
                 b_mark = False
             oi += 1
-
         masks = np.stack(masks)
         return masks
 
-
-    def batch_predict_line(self, texts: List[str]):
+    def batch_predict_line(self, texts: List[str], batch_size=None):
 
         stses_list = []
         back_indices = []
-        for ori_xs, xs, x_ids, lengths, tgt_masks, batch_back_indice in self.batchify(texts):
+        for ori_xs, xs, x_ids, lengths, tgt_masks, batch_back_indice in self.batchify(texts, batch_size):
 
             maxLen = max(len(x) for x in x_ids)
             x_ids = [x + [utils.PAD] * (maxLen - len(x)) for x in x_ids]
@@ -178,7 +181,7 @@ class Server(object):
 
             x_ids = torch.tensor(x_ids).to(self.config.device)
             lengths = torch.tensor(lengths).to(self.config.device)
-            tgt_masks = torch.tensor(tgt_masks).float().to(self.config.device)
+            tgt_masks = torch.tensor(tgt_masks).float()#.to(self.config.device)
 
             resList = []
             with torch.no_grad():
@@ -204,6 +207,7 @@ class Server(object):
         stses_list = [stses_list[i] for i in back_indices]
         return stses_list
 
+
 if __name__ == '__main__':
     from argparse import Namespace
     import opts
@@ -218,9 +222,15 @@ if __name__ == '__main__':
     config.device = device
 
     server = Server(config)
-    print(server.batch_predict_line(["test, test", "为什么你的脸一到换季就干，手也干，起皮，过敏！更换季节是一部分原因更多的是因为洗面奶含碱性太高 经常用碱性洗面奶洗脸洗掉了保湿的皮脂膜！"]))
+    print(server.batch_predict_line(
+        ["test, test", "为什么你的脸一到换季就干，手也干，起皮，过敏！更换季节是一部分原因更多的是因为洗面奶含碱性太高 经常用碱性洗面奶洗脸洗掉了保湿的皮脂膜！"]))
 
-    # with io.open("testOut.txt", 'w+', encoding='utf-8') as fout:
-    #     with io.open("../data/deepsegment/testdata/randomDescs.txt", encoding='utf-8') as fin:
-    #         lines = [line.strip().split('\t')[0] for line in fin.readlines()]
-    #         res_stses = server.batch_predict_line(lines)
+    with io.open("testOut.txt", 'w+', encoding='utf-8') as fout:
+        with io.open("../data/deepsegment/testdata/randomDescs.txt", encoding='utf-8') as fin:
+            lines = [line.strip().split('\t')[0] for line in fin.readlines()]
+            res_stses = server.batch_predict_line(lines, 32)
+            for ori, res in zip(lines, res_stses):
+                fout.write(ori + '\t' + str(len(ori)) + '\n')
+                for sts in res:
+                    fout.write(sts + '\t' + str(len(ori)) + '\n')
+                fout.write('\n')
