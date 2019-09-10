@@ -33,6 +33,11 @@ class ResLSTM_CRF(nn.Module):
                             num_layers=1, bidirectional=True, batch_first=True)
 
         self.lstm = StackedLSTM(self.num_layers, input_size=config.hidden_dim, config=config)
+
+        self.hidden1 = (nn.Parameter(torch.randn(self.num_direction, 1, self.hidden_dim // 2)).to(self.device),
+                        nn.Parameter(torch.randn(self.num_direction, 1, self.hidden_dim // 2)).to(self.device))
+        self.hidden2 = (nn.Parameter(torch.randn(self.num_layers, 1, self.hidden_dim)).to(self.device),
+                        nn.Parameter(torch.randn(self.num_layers, 1, self.hidden_dim)).to(self.device))
         # Maps the output of the LSTM into tag space.
         self.hidden2tag = nn.Linear(config.hidden_dim, self.tagset_size)
 
@@ -46,13 +51,15 @@ class ResLSTM_CRF(nn.Module):
 
     def _get_lstm_features(self, sentence, lengths):
         batch_size = sentence.size(0)
-        bilstm_hidden = self.init_hidden(self.num_direction, batch_size, self.hidden_dim // 2)
+        # bilstm_hidden = self.init_hidden(self.num_direction, batch_size, self.hidden_dim // 2)
+        bilstm_hidden = (self.hidden1[0].repeat(1, batch_size, 1), self.hidden1[1].repeat(1, batch_size, 1))
         embeds = self.emb_drop(self.word_embeds(sentence))
         embeds = nn.utils.rnn.pack_padded_sequence(embeds, lengths, batch_first=True)
         bilstm_out, _ = self.bilstm(embeds, bilstm_hidden)
         bilstm_out, _ = nn.utils.rnn.pad_packed_sequence(bilstm_out, batch_first=True, padding_value=utils.PAD)
 
-        lstm_hidden = self.init_hidden(self.num_layers, batch_size, self.hidden_dim)
+        # lstm_hidden = self.init_hidden(self.num_layers, batch_size, self.hidden_dim)
+        lstm_hidden = (self.hidden2[0].repeat(1, batch_size, 1), self.hidden2[1].repeat(1, batch_size, 1))
         lstm_out = []
         for t in range(sentence.size(1)):
             out_t, lstm_hidden = self.lstm(bilstm_out[:, t], lstm_hidden)

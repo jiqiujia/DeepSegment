@@ -133,7 +133,7 @@ if __name__ == '__main__':
                                                    fields=fields)
     train_iter, valid_iter = data.BucketIterator.splits((trainDataset, validDataset),
                                                         batch_sizes=(config.batch_size, config.batch_size),
-                                                        sort_key=lambda x: len(x.text),  # field sorted by len
+                                                        sort_key=lambda x: -len(x.text),  # field sorted by len
                                                         sort_within_batch=True,
                                                         repeat=False
                                                         )

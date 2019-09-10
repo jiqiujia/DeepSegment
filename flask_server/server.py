@@ -7,9 +7,6 @@ import numpy as np
 
 import logging
 import torch
-import json
-
-import opts
 import utils
 from models import BiLSTM_CRF, ResLSTM_CRF, TransformerCRF
 from typing import List
@@ -22,7 +19,7 @@ def _is_valid_input(texts):
     return len(texts) > 0 and isinstance(texts, list) and all(isinstance(s, str) and s.strip() for s in texts)
 
 
-ILLEGAL_REGEX = r"[^-\u4e00-\u9fff0-9a-zA-Z.、/*×]"
+ILLEGAL_REGEX = r"[^-\u4e00-\u9fff0-9a-zA-Z.、/*]"
 
 
 class Server(object):
@@ -59,7 +56,7 @@ class Server(object):
     def preprocess(self, x: str):
         x = re.sub("&amp;?", "&", x, flags=re.IGNORECASE)
         x = re.sub("&#x0a;?", "", x, flags=re.IGNORECASE)
-        x = re.sub("&apos;?", "'", x, flags=re.IGNORECASE)
+        x = re.sub("&apos[;，]?", "'", x, flags=re.IGNORECASE)
         x = re.sub("&#x0020;?", "", x, flags=re.IGNORECASE)
         x = re.sub("&#x000a;?", "", x, flags=re.IGNORECASE)
         x = re.sub("(https?|ftp|file)://[-a-zA-Z0-9+&@#/%?=~_|!:,.;]*[-a-zA-Z0-9+&@#/%=~_|]", "", x,
@@ -67,6 +64,8 @@ class Server(object):
         x = re.sub("\\[[^\\]]{1,3}\\]", "", x)
         x = re.sub('[-.=]{2,}', '', x)
         x = re.sub(']]$', '', x)
+        x = re.sub("", "", x)
+        x = re.sub('×', 'x', x)
         return x
 
     def batchify(self, texts: List[str], batch_size=None):
@@ -188,7 +187,7 @@ class Server(object):
                 score, tag_seq = self.model(x_ids, lengths, self.config.nbest, tgt_masks)
                 if self.config.nbest <= 1:
                     for tags in tag_seq:
-                        candidates = [''.join(self.tgt_vocab.convertToLabels(tags, utils.PAD))]
+                        candidates = [''.join(self.tgt_vocab.convertToLabels(tags, utils.PAD, oovs=self.oovs))]
                         resList.append(candidates)
                 else:
                     tag_seq = tag_seq.cpu().numpy()
@@ -233,4 +232,4 @@ if __name__ == '__main__':
                 fout.write(ori + '\t' + str(len(ori)) + '\n')
                 for sts in res:
                     fout.write(sts + '\t' + str(len(ori)) + '\n')
-                fout.write('\n')
+                fout.write('#\t' + str(len(ori)) + '\n')

@@ -72,12 +72,12 @@ class CRF(nn.Module):
         for t in range(h.size(1)):  # recursion through the sequence
             mask_t = mask[:, t].unsqueeze(1)
             score_t = score.unsqueeze(1) + trans  # [B, 1, C] -> [B, C, C]
+            if constrained_masks is not None and t > 1:
+                score_t = score_t * constrained_masks[:, t-1].unsqueeze(1)
             score_t, bptr_t = score_t.max(2)  # best previous scores and tags
             score_t += h[:, t]  # plus emission scores
             bptr[:, t] = bptr_t  # .unsqueeze(1)
             # bptr = torch.cat((bptr, bptr_t.unsqueeze(1)), 1)
-            if constrained_masks is not None:
-                score_t = score_t * constrained_masks[:, t]
             score = torch.where(mask_t, score_t, score)  # score_t * mask_t + score * (1 - mask_t)
         score += trans[self.end_tag]
         best_score, best_tag = torch.max(score, 1)
