@@ -17,12 +17,27 @@ opt = parser.parse_args()
 
 logger = utils.init_logger("torch", logging_path='')
 
-# TODO: 处理~:：分隔符，两边都为数字时，不进行分句
 STS_SEPARATOR_REGEX = '[,，！!。？?:：;；~]|[-.=]{2,}'
+punctuations = ',，！!。？?;；'
+special_punctuations = '[:：~]'
 
+sts_multi_separator_regex = re.compile('[-.。=,，！!？?:：;；~]{2,}')
+alpha_digit_regex = re.compile('[0-9a-zA-Z]')
 
 def split_to_stses(line):
-    pass
+    stses = sts_multi_separator_regex.split(line)
+    res = []
+    for sts in stses:
+        start = 0
+        for i in range(len(sts)):
+            if sts[i] in punctuations:
+                res.append(sts[start:i])
+            elif sts[i] in special_punctuations:
+                if i < len(sts) - 1 and i > 0 and alpha_digit_regex.match(sts[i-1]) and alpha_digit_regex.match(sts[i+1]):
+                    res.append(sts[start:i])
+            else:
+                start = i
+    return res
 
 
 def train_val_split(X, y, valid_size=0.1, random_state=1101, shuffle=True):
@@ -55,7 +70,7 @@ if __name__ == '__main__':
             if line.count(':') >= 3:
                 continue
             line = line.split('\t')[-1]
-            stses = re.split(STS_SEPARATOR_REGEX, line)
+            stses = split_to_stses(line)
             tmp = ''.join(stses)
             if len(tmp) < 30:
                 continue
