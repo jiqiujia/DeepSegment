@@ -1,3 +1,4 @@
+# -*- coding: UTF-8 -*-
 import os
 import sys
 sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
@@ -21,22 +22,29 @@ STS_SEPARATOR_REGEX = '[,，！!。？?:：;；~]|[-.=]{2,}'
 punctuations = ',，！!。？?;；'
 special_punctuations = '[:：~]'
 
-sts_multi_separator_regex = re.compile('[-.。=,，！!？?:：;；~]{2,}')
+sts_multi_separator_regex = re.compile('[-.。=,，！!？?:：;；~…]{2,}')
 alpha_digit_regex = re.compile('[0-9a-zA-Z]')
 
 def split_to_stses(line):
     stses = sts_multi_separator_regex.split(line)
     res = []
     for sts in stses:
-        start = 0
+        start = -1
         for i in range(len(sts)):
             if sts[i] in punctuations:
-                res.append(sts[start:i])
-            elif sts[i] in special_punctuations:
-                if i < len(sts) - 1 and i > 0 and alpha_digit_regex.match(sts[i-1]) and alpha_digit_regex.match(sts[i+1]):
-                    res.append(sts[start:i])
-            else:
+                res.append(sts[start+1:i])
                 start = i
+            elif sts[i] in special_punctuations:
+                if i < len(sts) - 1 and i > 0 and not (alpha_digit_regex.match(sts[i-1]) and alpha_digit_regex.match(sts[i+1])):
+                    res.append(sts[start+1:i])
+                    start = i
+                elif i==0:
+                    start = i
+                elif i==len(sts) - 1:
+                    res.append(sts[start+1:i])
+                    start = i
+        if start < len(sts) - 1:
+            res.append(sts[start+1:])
     return res
 
 
@@ -67,10 +75,16 @@ if __name__ == '__main__':
     with io.open(opt.input, 'r', encoding='utf-8') as fin:
         for line in fin.readlines():
             line = line.strip().lower()
-            if line.count(':') >= 3:
+            if line.count(':') >= 3 or line.count(' ') > 3:
                 continue
-            line = line.split('\t')[-1]
+            if '【' in line or '】' in line:
+                continue
+            if "mb" in opt.input:
+                line = line.split('\t')[0]
+            else:
+                line = line.split('\t')[-1]
             stses = split_to_stses(line)
+            print(stses)
             tmp = ''.join(stses)
             if len(tmp) < 30:
                 continue
