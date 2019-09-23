@@ -220,6 +220,7 @@ if __name__ == '__main__':
             model.train()
             for batch in tqdm(train_iter):
                 model.zero_grad()
+                logger.info("lr {}".format(optim.lr))
 
                 inputs = batch.text[0].to(device)
                 labels = batch.label[0].to(device)

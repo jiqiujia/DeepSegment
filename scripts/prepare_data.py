@@ -20,7 +20,7 @@ logger = utils.init_logger("torch", logging_path='')
 
 STS_SEPARATOR_REGEX = '[,，！!。？?:：;；~]|[-.=]{2,}'
 punctuations = ',，！!。？?;；'
-special_punctuations = '[:：~]'
+special_punctuations = ':：~'
 
 sts_multi_separator_regex = re.compile('[-.。=,，！!？?:：;；~…]{2,}')
 alpha_digit_regex = re.compile('[0-9a-zA-Z]')
