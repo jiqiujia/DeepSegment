@@ -15,7 +15,7 @@ from utils import misc_utils
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-from flask import Flask, jsonify
+from flask import Flask, jsonify, url_for
 from flask_cors import CORS
 from gevent.pywsgi import WSGIServer
 
@@ -40,6 +40,20 @@ def start(args,
     @app.route('/', methods=['GET'])
     def index():
         return jsonify("hello nlp server")
+
+    @app.route("/site-map")
+    def site_map():
+        output = []
+        for rule in app.url_map.iter_rules():
+            options = {}
+            for arg in rule.arguments:
+                options[arg] = "[{0}]".format(arg)
+
+            methods = ','.join(rule.methods)
+            url = url_for(rule.endpoint, **options)
+            print(url)
+            output.append(url)
+        return jsonify(' '.join(output))
 
     CORS(app)
 
